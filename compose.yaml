@@ -1,0 +1,11 @@
+services:
+  thingspan:
+    image: pigzho/thingspan:latest
+    container_name: thingspan
+    ports:
+      - "19234:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

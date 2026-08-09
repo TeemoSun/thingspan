@@ -13,15 +13,19 @@
 cp .env.example .env
 # 编辑 .env：修改 APP_PASSWORD、JWT_SECRET，配置 SMTP 与 MAIL_TO
 
+# 方式一：docker compose（推荐，端口与数据卷已在 compose.yaml 定义）
+docker compose up -d
+
+# 方式二：docker run
 docker run -d \
   --name thingspan \
-  -p 8000:8000 \
+  -p 19234:8000 \
   -v "$(pwd)/data:/data" \
   --env-file .env \
-  thingspan/thingspan:latest
+  pigzho/thingspan:latest
 ```
 
-访问 `http://localhost:8000`，使用 `.env` 中的 `APP_PASSWORD` 登录。
+访问 `http://localhost:19234`，使用 `.env` 中的 `APP_PASSWORD` 登录。
 
 - SQLite 数据库自动创建于挂载的 `data` 目录（`/data/thingspan.db`）
 - 版本升级：拉取新镜像并重启容器，Alembic 自动升级数据库结构
@@ -66,11 +70,4 @@ uv run uvicorn app.main:app --reload --port 8000
 cd frontend
 npm install
 npm run dev            # http://localhost:5173，/api 已代理到 8000
-```
-
-## 构建镜像
-
-```bash
-docker build -t thingspan/thingspan:latest .
-docker push thingspan/thingspan:latest
 ```

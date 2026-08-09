@@ -231,10 +231,10 @@ POST   /api/reminders/{id}/dismiss   # 忽略某条提醒
 ```bash
 cp .env.example .env   # 修改 APP_PASSWORD、JWT_SECRET、SMTP、DATA_DIR 等
 docker run -d \
-  -p 8000:8000 \
+  -p 19234:8000 \
   -v /path/to/data:/data \
   --env-file .env \
-  thingspan/thingspan:latest
+  pigzho/thingspan:latest
 ```
 
 - SQLite 数据库文件自动创建于 `$DATA_DIR` 下
@@ -244,4 +244,4 @@ docker run -d \
 ## 12. 实施状态
 
 已全部完成（2026-08）：项目骨架、后端模型与迁移、bcrypt + JWT 双 Token、类别/资产 CRUD 与动态字段、成本计算与仪表盘、提醒调度 + SMTP 邮件（含失败重试）、前端 6 页面、Docker 镜像（已本地构建验证）。
-待用户操作：`docker push thingspan/thingspan:latest` 发布 DockerHub。
+待用户操作：`docker push pigzho/thingspan:latest` 发布 DockerHub。
