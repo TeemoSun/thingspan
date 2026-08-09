@@ -15,12 +15,26 @@ def _to_out(category: Category, assets_count: int) -> CategoryOut:
     return CategoryOut(
         id=category.id,
         name=category.name,
-        icon=category.icon,
-        template=category.template,
-        fields=category.fields or [],
+        has_warranty=category.has_warranty,
+        has_expiry=category.has_expiry,
+        can_sell=category.can_sell,
+        can_break=category.can_break,
+        has_serial=category.has_serial,
+        has_model=category.has_model,
         warranty_months=category.warranty_months,
         assets_count=assets_count,
     )
+
+
+def _apply(body: CategoryCreate | CategoryUpdate, category: Category) -> None:
+    category.name = body.name
+    category.has_warranty = body.has_warranty
+    category.has_expiry = body.has_expiry
+    category.can_sell = body.can_sell
+    category.can_break = body.can_break
+    category.has_serial = body.has_serial
+    category.has_model = body.has_model
+    category.warranty_months = body.warranty_months if body.has_warranty else None
 
 
 @router.get("", response_model=list[CategoryOut])
@@ -34,13 +48,8 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
 def create_category(body: CategoryCreate, db: Session = Depends(get_db)) -> CategoryOut:
     if db.scalar(select(Category).where(Category.name == body.name)):
         raise HTTPException(status_code=400, detail="类别名称已存在")
-    category = Category(
-        name=body.name,
-        icon=body.icon,
-        template=body.template.value,
-        fields=[f.model_dump() for f in body.fields],
-        warranty_months=body.warranty_months,
-    )
+    category = Category()
+    _apply(body, category)
     db.add(category)
     db.commit()
     db.refresh(category)
@@ -55,11 +64,7 @@ def update_category(category_id: int, body: CategoryUpdate, db: Session = Depend
     dup = db.scalar(select(Category).where(Category.name == body.name, Category.id != category_id))
     if dup:
         raise HTTPException(status_code=400, detail="类别名称已存在")
-    category.name = body.name
-    category.icon = body.icon
-    category.template = body.template.value
-    category.fields = [f.model_dump() for f in body.fields]
-    category.warranty_months = body.warranty_months
+    _apply(body, category)
     db.commit()
     db.refresh(category)
     return _to_out(category, db.scalar(select(func.count()).select_from(Asset).where(Asset.category_id == category_id)))

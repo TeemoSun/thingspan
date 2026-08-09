@@ -1,19 +1,14 @@
-export type Template = "product" | "membership" | "other";
 export type AssetStatus = "in_use" | "sold" | "broken" | "expired";
-export type FieldType = "text" | "date" | "number";
-
-export interface FieldDef {
-  key: string;
-  name: string;
-  type: FieldType;
-}
 
 export interface Category {
   id: number;
   name: string;
-  icon: string;
-  template: Template;
-  fields: FieldDef[];
+  has_warranty: boolean;
+  has_expiry: boolean;
+  can_sell: boolean;
+  can_break: boolean;
+  has_serial: boolean;
+  has_model: boolean;
   warranty_months: number | null;
   assets_count: number;
 }
@@ -29,7 +24,6 @@ export interface Asset {
   id: number;
   category_id: number;
   category_name: string;
-  category_template: Template;
   name: string;
   brand: string | null;
   model: string | null;
@@ -43,7 +37,6 @@ export interface Asset {
   sale_price: number | null;
   broken_date: string | null;
   notes: string | null;
-  custom_values: Record<string, string | number>;
   cost: CostInfo;
 }
 
@@ -85,16 +78,4 @@ export const STATUS_LABELS: Record<AssetStatus, string> = {
   sold: "已售出",
   broken: "已损坏",
   expired: "已过期",
-};
-
-export const TEMPLATE_LABELS: Record<Template, string> = {
-  product: "数码产品",
-  membership: "会员",
-  other: "其他",
-};
-
-export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  text: "文本",
-  date: "日期",
-  number: "数字",
 };

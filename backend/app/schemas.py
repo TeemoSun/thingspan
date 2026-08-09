@@ -1,19 +1,9 @@
 """Pydantic 请求/响应模型。"""
 from datetime import date, datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models import AssetStatus, Template
-
-FieldType = Literal["text", "date", "number"]
-
-
-class FieldDef(BaseModel):
-    key: str = Field(pattern=r"^[a-z_][a-z0-9_]*$")
-    name: str = Field(min_length=1, max_length=50)
-    type: FieldType
-
+from app.models import AssetStatus
 
 # ---------- 认证 ----------
 class LoginRequest(BaseModel):
@@ -33,18 +23,13 @@ class RefreshRequest(BaseModel):
 # ---------- 类别 ----------
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
-    icon: str = Field(default="tag", max_length=50)
-    template: Template = Template.other
-    fields: list[FieldDef] = Field(default_factory=list)
+    has_warranty: bool = False
+    has_expiry: bool = False
+    can_sell: bool = False
+    can_break: bool = False
+    has_serial: bool = False
+    has_model: bool = False
     warranty_months: int | None = Field(default=None, ge=1, le=240)
-
-    @field_validator("fields")
-    @classmethod
-    def unique_field_keys(cls, v: list[FieldDef]) -> list[FieldDef]:
-        keys = [f.key for f in v]
-        if len(keys) != len(set(keys)):
-            raise ValueError("字段 key 不能重复")
-        return v
 
 
 class CategoryUpdate(CategoryCreate):
@@ -56,9 +41,12 @@ class CategoryOut(BaseModel):
 
     id: int
     name: str
-    icon: str
-    template: str
-    fields: list[dict]
+    has_warranty: bool
+    has_expiry: bool
+    can_sell: bool
+    can_break: bool
+    has_serial: bool
+    has_model: bool
     warranty_months: int | None
     assets_count: int = 0
 
@@ -75,7 +63,6 @@ class AssetBase(BaseModel):
     warranty_end_date: date | None = None
     expiry_date: date | None = None
     notes: str | None = None
-    custom_values: dict = Field(default_factory=dict)
 
 
 class AssetCreate(AssetBase):
@@ -105,7 +92,6 @@ class AssetUpdate(BaseModel):
     sale_price: float | None = Field(default=None, ge=0)
     broken_date: date | None = None
     notes: str | None = None
-    custom_values: dict | None = None
 
 
 class CostOut(BaseModel):
@@ -121,7 +107,6 @@ class AssetOut(BaseModel):
     id: int
     category_id: int
     category_name: str = ""
-    category_template: str = ""
     name: str
     brand: str | None
     model: str | None
@@ -135,7 +120,6 @@ class AssetOut(BaseModel):
     sale_price: float | None
     broken_date: date | None
     notes: str | None
-    custom_values: dict
     created_at: datetime
     updated_at: datetime
     cost: CostOut | None = None

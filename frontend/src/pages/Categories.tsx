@@ -4,6 +4,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,26 +23,45 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { api } from "@/lib/api";
-import {
-  FIELD_TYPE_LABELS,
-  TEMPLATE_LABELS,
-  type Category,
+import type { Category } from "@/lib/types";
 
-  type FieldType,
-  type Template,
-} from "@/lib/types";
-
-interface FieldRow {
-  key: string;
-  name: string;
-  type: FieldType;
+interface FlagState {
+  has_warranty: boolean;
+  has_expiry: boolean;
+  can_sell: boolean;
+  can_break: boolean;
+  has_serial: boolean;
+  has_model: boolean;
 }
 
-const TEMPLATE_DESCRIPTIONS: Record<Template, string> = {
-  product: "数码类：支持品牌/型号/序列号/保修结束日期，可标记售出或损坏",
-  membership: "会员类：支持到期日期，到期后自动标记已过期",
-  other: "通用：仅基本信息，可标记售出或损坏",
+const EMPTY_FLAGS: FlagState = {
+  has_warranty: false,
+  has_expiry: false,
+  can_sell: false,
+  can_break: false,
+  has_serial: false,
+  has_model: false,
 };
+
+const FLAG_OPTIONS: { key: keyof FlagState; label: string; desc: string }[] = [
+  { key: "has_warranty", label: "保修期", desc: "资产可填写保修结束日期，可按购买日自动推算" },
+  { key: "has_expiry", label: "到期日期", desc: "资产可填写到期日期，到期后自动标记已过期" },
+  { key: "can_sell", label: "可售出", desc: "资产可标记已售出，填写售出日期与价格" },
+  { key: "can_break", label: "可损坏", desc: "资产可标记已损坏，填写损坏日期" },
+  { key: "has_serial", label: "序列号", desc: "资产需填写序列号" },
+  { key: "has_model", label: "型号", desc: "资产需填写型号" },
+];
+
+function paramBadges(category: Category): string[] {
+  const items: string[] = [];
+  if (category.has_warranty) items.push(category.warranty_months ? `保修 ${category.warranty_months} 个月` : "保修期");
+  if (category.has_expiry) items.push("到期日期");
+  if (category.can_sell) items.push("可售出");
+  if (category.can_break) items.push("可损坏");
+  if (category.has_serial) items.push("序列号");
+  if (category.has_model) items.push("型号");
+  return items;
+}
 
 export default function Categories() {
   const queryClient = useQueryClient();
@@ -60,19 +73,15 @@ export default function Categories() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState("tag");
-  const [template, setTemplate] = useState<Template>("other");
+  const [flags, setFlags] = useState<FlagState>(EMPTY_FLAGS);
   const [warrantyMonths, setWarrantyMonths] = useState("");
-  const [fields, setFields] = useState<FieldRow[]>([]);
   const [formError, setFormError] = useState("");
 
   function openCreate() {
     setEditing(null);
     setName("");
-    setIcon("tag");
-    setTemplate("other");
+    setFlags(EMPTY_FLAGS);
     setWarrantyMonths("");
-    setFields([]);
     setFormError("");
     setOpen(true);
   }
@@ -80,10 +89,15 @@ export default function Categories() {
   function openEdit(category: Category) {
     setEditing(category);
     setName(category.name);
-    setIcon(category.icon);
-    setTemplate(category.template);
+    setFlags({
+      has_warranty: category.has_warranty,
+      has_expiry: category.has_expiry,
+      can_sell: category.can_sell,
+      can_break: category.can_break,
+      has_serial: category.has_serial,
+      has_model: category.has_model,
+    });
     setWarrantyMonths(category.warranty_months ? String(category.warranty_months) : "");
-    setFields(category.fields.map((f) => ({ ...f })));
     setFormError("");
     setOpen(true);
   }
@@ -92,12 +106,8 @@ export default function Categories() {
     mutationFn: () => {
       const payload = {
         name,
-        icon,
-        template,
-        warranty_months: template === "product" && warrantyMonths ? parseInt(warrantyMonths, 10) : null,
-        fields: fields
-          .filter((f) => f.key.trim() && f.name.trim())
-          .map((f) => ({ key: f.key.trim(), name: f.name.trim(), type: f.type })),
+        ...flags,
+        warranty_months: flags.has_warranty && warrantyMonths ? parseInt(warrantyMonths, 10) : null,
       };
       return editing
         ? api<Category>(`/api/categories/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) })
@@ -117,18 +127,14 @@ export default function Categories() {
     onError: (err) => window.alert(err instanceof Error ? err.message : "删除失败"),
   });
 
-  function updateField(index: number, patch: Partial<FieldRow>) {
-    setFields((list) => list.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  function toggleFlag(key: keyof FlagState, checked: boolean) {
+    setFlags((f) => ({ ...f, [key]: checked }));
   }
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
       setFormError("请输入类别名称");
-      return;
-    }
-    if (fields.some((f) => f.key && !/^[a-z_][a-z0-9_]*$/.test(f.key))) {
-      setFormError("字段 key 只允许小写字母、数字和下划线，且必须以字母或下划线开头");
       return;
     }
     saveMutation.mutate();
@@ -142,7 +148,7 @@ export default function Categories() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">类别</h1>
-          <p className="text-sm text-muted-foreground">每种类别可配置不同的模板与自定义字段</p>
+          <p className="text-sm text-muted-foreground">勾选类别拥有的参数，新建该类别资产时会要求填写对应内容</p>
         </div>
         <Button onClick={openCreate}>
           <IconPlus className="h-4 w-4" />
@@ -155,8 +161,7 @@ export default function Categories() {
           <TableHeader>
             <TableRow>
               <TableHead>名称</TableHead>
-              <TableHead>模板</TableHead>
-              <TableHead>自定义字段</TableHead>
+              <TableHead>资产参数</TableHead>
               <TableHead className="text-right">资产数</TableHead>
               <TableHead className="w-24" />
             </TableRow>
@@ -164,53 +169,54 @@ export default function Categories() {
           <TableBody>
             {(categories ?? []).length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
                   暂无类别，点击右上角「新建类别」开始配置
                 </TableCell>
               </TableRow>
             )}
-            {(categories ?? []).map((category) => (
-              <TableRow key={category.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2 font-medium">
-                    <Badge variant="outline" className="font-mono">
-                      {category.icon}
-                    </Badge>
-                    {category.name}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{TEMPLATE_LABELS[category.template]}</Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {category.fields.length === 0
-                    ? "-"
-                    : category.fields
-                        .map((f) => `${f.name}（${FIELD_TYPE_LABELS[f.type]}）`)
-                        .join("、")}
-                </TableCell>
-                <TableCell className="text-right">{category.assets_count}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(category)}>
-                      编辑
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`确定删除类别「${category.name}」吗？`)) {
-                          deleteMutation.mutate(category.id);
-                        }
-                      }}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {(categories ?? []).map((category) => {
+              const badges = paramBadges(category);
+              return (
+                <TableRow key={category.id}>
+                  <TableCell>
+                    <div className="font-medium">{category.name}</div>
+                  </TableCell>
+                  <TableCell>
+                    {badges.length === 0 ? (
+                      <span className="text-muted-foreground">无</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {badges.map((b) => (
+                          <Badge key={b} variant="secondary">
+                            {b}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">{category.assets_count}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(category)}>
+                        编辑
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => {
+                          if (window.confirm(`确定删除类别「${category.name}」吗？`)) {
+                            deleteMutation.mutate(category.id);
+                          }
+                        }}
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -221,100 +227,47 @@ export default function Categories() {
             <DialogTitle>{editing ? "编辑类别" : "新建类别"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cat-name">名称 *</Label>
-                <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="如 数码产品" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cat-icon">图标（Tabler 名称）</Label>
-                <Input id="cat-icon" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="如 device-mobile" />
-              </div>
-              <div className="space-y-2">
-                <Label>模板</Label>
-                <Select value={template} onValueChange={(v) => setTemplate(v as Template)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(TEMPLATE_LABELS) as Template[]).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {TEMPLATE_LABELS[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{TEMPLATE_DESCRIPTIONS[template]}</p>
-              </div>
-              {template === "product" && (
-                <div className="space-y-2">
-                  <Label htmlFor="warranty">保修月数</Label>
-                  <Input
-                    id="warranty"
-                    type="number"
-                    min="1"
-                    max="240"
-                    value={warrantyMonths}
-                    onChange={(e) => setWarrantyMonths(e.target.value)}
-                    placeholder="如 12"
-                  />
-                  <p className="text-xs text-muted-foreground">按购买日自动推算保修结束日期</p>
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="cat-name">名称 *</Label>
+              <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="如 数码产品" />
             </div>
 
             <div className="space-y-2">
-              <Label>自定义字段</Label>
-              <div className="space-y-2">
-                {fields.map((field, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      className="w-40 font-mono"
-                      placeholder="key，如 cpu"
-                      value={field.key}
-                      onChange={(e) => updateField(index, { key: e.target.value })}
-                    />
-                    <Input
-                      className="flex-1"
-                      placeholder="显示名称，如 CPU"
-                      value={field.name}
-                      onChange={(e) => updateField(index, { name: e.target.value })}
-                    />
-                    <Select
-                      value={field.type}
-                      onValueChange={(v) => updateField(index, { type: v as FieldType })}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {FIELD_TYPE_LABELS[t]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground"
-                      onClick={() => setFields((list) => list.filter((_, i) => i !== index))}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFields((list) => [...list, { key: "", name: "", type: "text" }])}
-                >
-                  <IconPlus className="h-4 w-4" />
-                  添加字段
-                </Button>
+              <Label>资产参数（勾选后新建该类资产时需要填写）</Label>
+              <div className="rounded-md border p-4">
+                <div className="space-y-3">
+                  {FLAG_OPTIONS.map((option) => (
+                    <label key={option.key} className="flex items-start gap-3">
+                      <Checkbox
+                        checked={flags[option.key]}
+                        onCheckedChange={(v) => toggleFlag(option.key, v === true)}
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{option.label}</p>
+                        <p className="text-xs text-muted-foreground">{option.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                  {flags.has_warranty && (
+                    <div className="flex items-center gap-3 pl-7">
+                      <Label htmlFor="cat-warranty" className="text-sm font-medium">
+                        保修月数
+                      </Label>
+                      <Input
+                        id="cat-warranty"
+                        type="number"
+                        min="1"
+                        max="240"
+                        className="w-28"
+                        value={warrantyMonths}
+                        onChange={(e) => setWarrantyMonths(e.target.value)}
+                        placeholder="如 12"
+                      />
+                      <p className="text-xs text-muted-foreground">按购买日自动推算保修结束日期</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

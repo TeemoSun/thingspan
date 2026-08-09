@@ -2,16 +2,10 @@
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, local_now
-
-
-class Template(str, enum.Enum):
-    product = "product"
-    membership = "membership"
-    other = "other"
 
 
 class AssetStatus(str, enum.Enum):
@@ -22,15 +16,19 @@ class AssetStatus(str, enum.Enum):
 
 
 class Category(Base):
+    """类别：以勾选方式配置资产参数（保修期/到期日期/售出/损坏/序列号/型号）。"""
+
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
-    icon: Mapped[str] = mapped_column(String(50), default="tag")
-    template: Mapped[str] = mapped_column(String(20), default=Template.other.value)
-    # 自定义字段定义: [{"key": "cpu", "name": "CPU", "type": "text"|"date"|"number"}]
-    fields: Mapped[list] = mapped_column(JSON, default=list)
-    # 仅 product 模板：保修月数，购买日 + 月数自动推算保修结束日期
+    # 资产参数勾选：勾选后新建该类资产时表单出现对应字段/状态
+    has_warranty: Mapped[bool] = mapped_column(Boolean, default=False)  # 保修期（勾选后配置保修月数，自动推算保修结束日期）
+    has_expiry: Mapped[bool] = mapped_column(Boolean, default=False)  # 到期日期（到期后自动标记已过期）
+    can_sell: Mapped[bool] = mapped_column(Boolean, default=False)  # 可售出（可标记已售出，填写售出日期/价格）
+    can_break: Mapped[bool] = mapped_column(Boolean, default=False)  # 可损坏（可标记已损坏，填写损坏日期）
+    has_serial: Mapped[bool] = mapped_column(Boolean, default=False)  # 序列号
+    has_model: Mapped[bool] = mapped_column(Boolean, default=False)  # 型号
     warranty_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=local_now)
 
@@ -55,7 +53,6 @@ class Asset(Base):
     sale_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     broken_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    custom_values: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=local_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=local_now, onupdate=local_now)
 

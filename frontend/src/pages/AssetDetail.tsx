@@ -39,7 +39,6 @@ interface FormState {
   warranty_end_date: string;
   expiry_date: string;
   notes: string;
-  custom: Record<string, string>;
 }
 
 const FORMULA_LABELS: Record<string, string> = {
@@ -77,7 +76,6 @@ export default function AssetDetail() {
     warranty_end_date: "",
     expiry_date: "",
     notes: "",
-    custom: {},
   });
   const [error, setError] = useState("");
   const [sellOpen, setSellOpen] = useState(false);
@@ -99,7 +97,6 @@ export default function AssetDetail() {
       warranty_end_date: asset.warranty_end_date ?? "",
       expiry_date: asset.expiry_date ?? "",
       notes: asset.notes ?? "",
-      custom: Object.fromEntries(Object.entries(asset.custom_values).map(([k, v]) => [k, String(v)])),
     });
   }, [asset]);
 
@@ -108,12 +105,8 @@ export default function AssetDetail() {
     [categories, form.category_id]
   );
 
-  function setField(field: keyof Omit<FormState, "custom">, value: string) {
+  function setField(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  function setCustom(key: string, value: string) {
-    setForm((f) => ({ ...f, custom: { ...f.custom, [key]: value } }));
   }
 
   async function submit(e: FormEvent) {
@@ -134,7 +127,6 @@ export default function AssetDetail() {
       warranty_end_date: form.warranty_end_date || null,
       expiry_date: form.expiry_date || null,
       notes: form.notes || null,
-      custom_values: form.custom,
     };
     try {
       const saved = isNew
@@ -171,8 +163,12 @@ export default function AssetDetail() {
     onError: (err) => setError(err instanceof Error ? err.message : "删除失败"),
   });
 
-  const showProductFields = category?.template === "product";
-  const showMembershipField = category?.template === "membership";
+  const showWarrantyField = category?.has_warranty === true;
+  const showExpiryField = category?.has_expiry === true;
+  const showModelField = category?.has_model === true;
+  const showSerialField = category?.has_serial === true;
+  const canSell = category?.can_sell === true;
+  const canBreak = category?.can_break === true;
 
   if (assetLoading) return <p className="text-muted-foreground">加载中…</p>;
 
@@ -248,14 +244,18 @@ export default function AssetDetail() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {asset.status === "in_use" && (showProductFields || category?.template === "other") && (
+              {asset.status === "in_use" && (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => setSellOpen(true)}>
-                    标记已售出
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setBrokenOpen(true)}>
-                    标记已损坏
-                  </Button>
+                  {canSell && (
+                    <Button variant="outline" size="sm" onClick={() => setSellOpen(true)}>
+                      标记已售出
+                    </Button>
+                  )}
+                  {canBreak && (
+                    <Button variant="outline" size="sm" onClick={() => setBrokenOpen(true)}>
+                      标记已损坏
+                    </Button>
+                  )}
                 </>
               )}
               {(asset.status === "sold" || asset.status === "broken") && (
@@ -290,20 +290,7 @@ export default function AssetDetail() {
               </div>
               <div className="space-y-2">
                 <Label>类别 *</Label>
-                <Select
-                  value={form.category_id}
-                  onValueChange={(v) => {
-                    setField("category_id", v);
-                    const next = (categories ?? []).find((c) => c.id === Number(v));
-                    const allowed = new Set((next?.fields ?? []).map((f) => f.key));
-                    setForm((f) => ({
-                      ...f,
-                      custom: Object.fromEntries(
-                        Object.entries(f.custom).filter(([k]) => allowed.has(k))
-                      ),
-                    }));
-                  }}
-                >
+                <Select value={form.category_id} onValueChange={(v) => setField("category_id", v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="选择类别" />
                   </SelectTrigger>
@@ -316,21 +303,21 @@ export default function AssetDetail() {
                   </SelectContent>
                 </Select>
               </div>
-              {showProductFields && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="brand">品牌</Label>
-                    <Input id="brand" value={form.brand} onChange={(e) => setField("brand", e.target.value)} placeholder="如 Apple" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="model">型号</Label>
-                    <Input id="model" value={form.model} onChange={(e) => setField("model", e.target.value)} placeholder="如 A3101" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="serial">序列号</Label>
-                    <Input id="serial" value={form.serial_number} onChange={(e) => setField("serial_number", e.target.value)} />
-                  </div>
-                </>
+              <div className="space-y-2">
+                <Label htmlFor="brand">品牌</Label>
+                <Input id="brand" value={form.brand} onChange={(e) => setField("brand", e.target.value)} placeholder="如 Apple" />
+              </div>
+              {showModelField && (
+                <div className="space-y-2">
+                  <Label htmlFor="model">型号</Label>
+                  <Input id="model" value={form.model} onChange={(e) => setField("model", e.target.value)} placeholder="如 A3101" />
+                </div>
+              )}
+              {showSerialField && (
+                <div className="space-y-2">
+                  <Label htmlFor="serial">序列号</Label>
+                  <Input id="serial" value={form.serial_number} onChange={(e) => setField("serial_number", e.target.value)} />
+                </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="purchase_date">购买日期 *</Label>
@@ -353,7 +340,7 @@ export default function AssetDetail() {
                 <Label htmlFor="purchase_price">购买价格（元）*</Label>
                 <Input id="purchase_price" type="number" min="0" step="0.01" value={form.purchase_price} onChange={(e) => setField("purchase_price", e.target.value)} required placeholder="如 5999" />
               </div>
-              {showProductFields && (
+              {showWarrantyField && (
                 <div className="space-y-2">
                   <Label htmlFor="warranty_end">保修结束日期</Label>
                   <Input id="warranty_end" type="date" value={form.warranty_end_date} onChange={(e) => setField("warranty_end_date", e.target.value)} />
@@ -364,39 +351,12 @@ export default function AssetDetail() {
                   ) : null}
                 </div>
               )}
-              {showMembershipField && (
+              {showExpiryField && (
                 <div className="space-y-2">
                   <Label htmlFor="expiry">到期日期</Label>
                   <Input id="expiry" type="date" value={form.expiry_date} onChange={(e) => setField("expiry_date", e.target.value)} />
                 </div>
               )}
-              {category?.fields.map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <Label htmlFor={`custom-${field.key}`}>{field.name}</Label>
-                  {field.type === "date" ? (
-                    <Input
-                      id={`custom-${field.key}`}
-                      type="date"
-                      value={form.custom[field.key] ?? ""}
-                      onChange={(e) => setCustom(field.key, e.target.value)}
-                    />
-                  ) : field.type === "number" ? (
-                    <Input
-                      id={`custom-${field.key}`}
-                      type="number"
-                      step="0.01"
-                      value={form.custom[field.key] ?? ""}
-                      onChange={(e) => setCustom(field.key, e.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      id={`custom-${field.key}`}
-                      value={form.custom[field.key] ?? ""}
-                      onChange={(e) => setCustom(field.key, e.target.value)}
-                    />
-                  )}
-                </div>
-              ))}
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="notes">备注</Label>
                 <Textarea id="notes" value={form.notes} onChange={(e) => setField("notes", e.target.value)} placeholder="可选，记录购买渠道、凭证等" />

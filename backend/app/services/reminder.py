@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal, local_now
-from app.models import Asset, AssetStatus, Category, ReminderLog, Template
+from app.models import Asset, AssetStatus, Category, ReminderLog
 from app.services.cost import reminder_base_date
 from app.services.email import send_email
 
@@ -70,13 +70,13 @@ async def run_reminder_scan() -> None:
                     session.commit()
                 break
 
-        # 2. 会员到期自动标记为已过期
+        # 2. 勾选了「到期日期」类别的资产，到期自动标记为已过期
         overdue = session.scalars(
             select(Asset)
             .join(Category, Asset.category_id == Category.id)
             .where(
                 Asset.status == AssetStatus.in_use.value,
-                Category.template == Template.membership.value,
+                Category.has_expiry.is_(True),
                 Asset.expiry_date.is_not(None),
                 Asset.expiry_date < today,
             )
