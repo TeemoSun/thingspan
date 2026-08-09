@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { IconPlus, IconSearch } from "@tabler/icons-react";
+import { IconLayoutGrid, IconLayoutList, IconPlus, IconSearch } from "@tabler/icons-react";
 
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -77,6 +81,13 @@ export default function Assets() {
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState<SortState | null>(null);
+  const [view, setView] = useState<"list" | "grid">(
+    () => (localStorage.getItem("thingspan_assets_view") as "list" | "grid") ?? "list"
+  );
+
+  useEffect(() => {
+    localStorage.setItem("thingspan_assets_view", view);
+  }, [view]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search), 300);
@@ -157,12 +168,29 @@ export default function Assets() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          variant={view === "list" ? "default" : "outline"}
+          size="icon"
+          className="ml-auto"
+          onClick={() => setView("list")}
+          title="列表视图"
+        >
+          <IconLayoutList className="h-4 w-4" />
+        </Button>
+        <Button
+          variant={view === "grid" ? "default" : "outline"}
+          size="icon"
+          onClick={() => setView("grid")}
+          title="卡片视图"
+        >
+          <IconLayoutGrid className="h-4 w-4" />
+        </Button>
       </div>
 
       {isLoading && <p className="text-muted-foreground">加载中…</p>}
       {error && <p className="text-destructive">{error instanceof Error ? error.message : "加载失败"}</p>}
 
-      {data && (
+      {data && view === "list" && (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -194,10 +222,10 @@ export default function Assets() {
               {data.items.map((asset) => (
                 <TableRow key={asset.id}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      {asset.icon && (
-                        <AssetIcon name={asset.icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        <AssetIcon name={asset.icon} size={20} className="text-foreground" />
+                      </div>
                       <div>
                         <div className="font-medium">{asset.name}</div>
                         {asset.brand || asset.model ? (
@@ -224,6 +252,54 @@ export default function Assets() {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {data && view === "grid" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {data.items.length === 0 && (
+            <p className="col-span-full py-10 text-center text-muted-foreground">
+              暂无资产，点击右上角「新建资产」开始记录
+            </p>
+          )}
+          {data.items.map((asset) => (
+            <Card
+              key={asset.id}
+              className="cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => navigate(`/assets/${asset.id}`)}
+            >
+              <CardContent className="flex flex-col gap-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      <AssetIcon name={asset.icon} size={26} className="text-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{asset.name}</div>
+                      {asset.brand || asset.model ? (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {[asset.brand, asset.model].filter(Boolean).join(" · ")}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <StatusBadge status={asset.status} />
+                </div>
+                <div className="text-xs text-muted-foreground">{asset.category_name}</div>
+                <div className="flex items-end justify-between border-t pt-3">
+                  <div className="text-xs text-muted-foreground">
+                    购买于 {fmtDate(asset.purchase_date)}
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{fmtMoneyShort(asset.purchase_price)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      日均 {fmtMoney(asset.cost.daily_cost)}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
