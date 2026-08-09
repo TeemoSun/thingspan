@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconArrowLeft, IconCalendarEvent, IconCoins, IconTag, IconTrash } from "@tabler/icons-react";
 
 import { StatusBadge } from "@/components/StatusBadge";
+import IconPicker from "@/components/IconPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -27,8 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { fmtDate, fmtMoney, fmtMoneyShort, todayStr } from "@/lib/format";
 import { usePageTitle } from "@/lib/hooks";
-import { ASSET_ICONS, AssetIcon } from "@/lib/icons";
-import { cn } from "@/lib/utils";
+import { AssetIcon } from "@/lib/icons";
 import { type Asset, type Category } from "@/lib/types";
 
 interface FormState {
@@ -84,6 +84,7 @@ export default function AssetDetail() {
     notes: "",
   });
   const [error, setError] = useState("");
+  const [iconOpen, setIconOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [brokenOpen, setBrokenOpen] = useState(false);
   const [saleDate, setSaleDate] = useState(todayStr());
@@ -312,23 +313,23 @@ export default function AssetDetail() {
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>图标</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {ASSET_ICONS.map((opt) => (
-                    <button
-                      key={opt.name}
-                      type="button"
-                      title={opt.label}
-                      aria-pressed={form.icon === opt.name}
-                      onClick={() => setField("icon", form.icon === opt.name ? "" : opt.name)}
-                      className={cn(
-                        "rounded-md border p-1.5 hover:bg-muted",
-                        form.icon === opt.name && "border-primary bg-primary/10"
-                      )}
-                    >
-                      <AssetIcon name={opt.name} size={18} />
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIconOpen(true)} className="gap-2">
+                    <AssetIcon name={form.icon || null} size={16} />
+                    {form.icon || "选择图标"}
+                  </Button>
+                  {form.icon && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setField("icon", "")}>
+                      清除
+                    </Button>
+                  )}
                 </div>
+                <IconPicker
+                  open={iconOpen}
+                  onOpenChange={setIconOpen}
+                  value={form.icon}
+                  onSelect={(icon: string) => setField("icon", icon)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>类别 *</Label>

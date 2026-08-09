@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api import assets, auth, categories, dashboard, reminders
+from app.api import assets, auth, categories, dashboard, icons, reminders
 from app.config import settings
 from app.scheduler import scheduler
 from app.security import init_password
@@ -67,6 +67,7 @@ app.include_router(auth.router)
 app.include_router(categories.router)
 app.include_router(assets.router)
 app.include_router(dashboard.router)
+app.include_router(icons.router)
 app.include_router(reminders.router)
 
 
