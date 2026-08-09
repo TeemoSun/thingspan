@@ -9,7 +9,6 @@ export interface Category {
   can_break: boolean;
   has_serial: boolean;
   has_model: boolean;
-  warranty_months: number | null;
   assets_count: number;
 }
 
@@ -30,6 +29,7 @@ export interface Asset {
   serial_number: string | null;
   purchase_date: string;
   purchase_price: number;
+  warranty_months: number | null;
   warranty_end_date: string | null;
   expiry_date: string | null;
   status: AssetStatus;

@@ -36,7 +36,7 @@ interface FormState {
   serial_number: string;
   purchase_date: string;
   purchase_price: string;
-  warranty_end_date: string;
+  warranty_months: string;
   expiry_date: string;
   notes: string;
 }
@@ -73,7 +73,7 @@ export default function AssetDetail() {
     serial_number: "",
     purchase_date: todayStr(),
     purchase_price: "",
-    warranty_end_date: "",
+    warranty_months: "",
     expiry_date: "",
     notes: "",
   });
@@ -94,7 +94,7 @@ export default function AssetDetail() {
       serial_number: asset.serial_number ?? "",
       purchase_date: asset.purchase_date,
       purchase_price: String(asset.purchase_price),
-      warranty_end_date: asset.warranty_end_date ?? "",
+      warranty_months: asset.warranty_months ? String(asset.warranty_months) : "",
       expiry_date: asset.expiry_date ?? "",
       notes: asset.notes ?? "",
     });
@@ -124,7 +124,7 @@ export default function AssetDetail() {
       serial_number: form.serial_number || null,
       purchase_date: form.purchase_date,
       purchase_price: parseFloat(form.purchase_price) || 0,
-      warranty_end_date: form.warranty_end_date || null,
+      warranty_months: form.warranty_months ? parseInt(form.warranty_months, 10) : null,
       expiry_date: form.expiry_date || null,
       notes: form.notes || null,
     };
@@ -169,6 +169,17 @@ export default function AssetDetail() {
   const showSerialField = category?.has_serial === true;
   const canSell = category?.can_sell === true;
   const canBreak = category?.can_break === true;
+
+  const warrantyEndPreview = useMemo(() => {
+    const months = parseInt(form.warranty_months, 10);
+    if (!showWarrantyField || !form.purchase_date || !months || months < 1) return null;
+    const d = new Date(`${form.purchase_date}T00:00:00`);
+    d.setDate(d.getDate() + months * 30);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, [showWarrantyField, form.purchase_date, form.warranty_months]);
 
   if (assetLoading) return <p className="text-muted-foreground">加载中…</p>;
 
@@ -325,14 +336,7 @@ export default function AssetDetail() {
                   id="purchase_date"
                   type="date"
                   value={form.purchase_date}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm((f) => ({
-                      ...f,
-                      purchase_date: v,
-                      warranty_end_date: category?.warranty_months ? "" : f.warranty_end_date,
-                    }));
-                  }}
+                  onChange={(e) => setField("purchase_date", e.target.value)}
                   required
                 />
               </div>
@@ -342,13 +346,19 @@ export default function AssetDetail() {
               </div>
               {showWarrantyField && (
                 <div className="space-y-2">
-                  <Label htmlFor="warranty_end">保修结束日期</Label>
-                  <Input id="warranty_end" type="date" value={form.warranty_end_date} onChange={(e) => setField("warranty_end_date", e.target.value)} />
-                  {category?.warranty_months ? (
-                    <p className="text-xs text-muted-foreground">
-                      该类别按购买日 + {category.warranty_months} 个月自动推算，留空即可
-                    </p>
-                  ) : null}
+                  <Label htmlFor="warranty_months">保修期（月数）</Label>
+                  <Input
+                    id="warranty_months"
+                    type="number"
+                    min="1"
+                    max="600"
+                    value={form.warranty_months}
+                    onChange={(e) => setField("warranty_months", e.target.value)}
+                    placeholder="如 12"
+                  />
+                  {warrantyEndPreview && (
+                    <p className="text-xs text-muted-foreground">保修至 {warrantyEndPreview}（购买日 + 月数×30 天自动推算）</p>
+                  )}
                 </div>
               )}
               {showExpiryField && (

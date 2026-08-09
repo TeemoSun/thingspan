@@ -29,7 +29,6 @@ class CategoryCreate(BaseModel):
     can_break: bool = False
     has_serial: bool = False
     has_model: bool = False
-    warranty_months: int | None = Field(default=None, ge=1, le=240)
 
 
 class CategoryUpdate(CategoryCreate):
@@ -47,7 +46,6 @@ class CategoryOut(BaseModel):
     can_break: bool
     has_serial: bool
     has_model: bool
-    warranty_months: int | None
     assets_count: int = 0
 
 
@@ -60,6 +58,7 @@ class AssetBase(BaseModel):
     serial_number: str | None = None
     purchase_date: date
     purchase_price: float = Field(ge=0)
+    warranty_months: int | None = Field(default=None, ge=1, le=600)
     warranty_end_date: date | None = None
     expiry_date: date | None = None
     notes: str | None = None
@@ -85,6 +84,7 @@ class AssetUpdate(BaseModel):
     serial_number: str | None = None
     purchase_date: date | None = None
     purchase_price: float | None = Field(default=None, ge=0)
+    warranty_months: int | None = Field(default=None, ge=1, le=600)
     warranty_end_date: date | None = None
     expiry_date: date | None = None
     status: AssetStatus | None = None
@@ -113,6 +113,7 @@ class AssetOut(BaseModel):
     serial_number: str | None
     purchase_date: date
     purchase_price: float
+    warranty_months: int | None
     warranty_end_date: date | None
     expiry_date: date | None
     status: str

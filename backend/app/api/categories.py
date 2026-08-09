@@ -21,7 +21,6 @@ def _to_out(category: Category, assets_count: int) -> CategoryOut:
         can_break=category.can_break,
         has_serial=category.has_serial,
         has_model=category.has_model,
-        warranty_months=category.warranty_months,
         assets_count=assets_count,
     )
 
@@ -34,7 +33,6 @@ def _apply(body: CategoryCreate | CategoryUpdate, category: Category) -> None:
     category.can_break = body.can_break
     category.has_serial = body.has_serial
     category.has_model = body.has_model
-    category.warranty_months = body.warranty_months if body.has_warranty else None
 
 
 @router.get("", response_model=list[CategoryOut])

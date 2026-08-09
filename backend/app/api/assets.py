@@ -27,6 +27,7 @@ def _to_out(asset: Asset) -> AssetOut:
         serial_number=asset.serial_number,
         purchase_date=asset.purchase_date,
         purchase_price=asset.purchase_price,
+        warranty_months=asset.warranty_months,
         warranty_end_date=asset.warranty_end_date,
         expiry_date=asset.expiry_date,
         status=asset.status,
@@ -48,10 +49,13 @@ def _validate_category(db: Session, category_id: int) -> Category:
 
 
 def _apply_warranty(asset: Asset, category: Category, force: bool = False) -> None:
-    """类别勾选了保修期且配置了保修月数时，自动推算保修结束日期（用户手动填过且未改购买日则不覆盖）。"""
-    if category.has_warranty and category.warranty_months and asset.purchase_date:
+    """类别勾选保修期且资产填写了保修月数时：保修结束日 = 购买日 + 月数×30 天。
+    force=True（新建、改购买日/月数/换类别）时总是重算；否则仅当未填过结束日期时补算。"""
+    if category.has_warranty and asset.purchase_date and asset.warranty_months:
         if force or asset.warranty_end_date is None:
-            asset.warranty_end_date = asset.purchase_date + timedelta(days=category.warranty_months * 30)
+            asset.warranty_end_date = asset.purchase_date + timedelta(days=asset.warranty_months * 30)
+    elif force:
+        asset.warranty_end_date = None
 
 
 def _check_status_fields(category: Category, status: str, sale_date, sale_price, broken_date, *, check_flags: bool = True) -> None:
@@ -106,6 +110,7 @@ def create_asset(body: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
         serial_number=body.serial_number,
         purchase_date=body.purchase_date,
         purchase_price=body.purchase_price,
+        warranty_months=body.warranty_months,
         warranty_end_date=body.warranty_end_date,
         expiry_date=body.expiry_date,
         status=body.status.value,
@@ -157,7 +162,7 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
         asset.status = status
 
     for field in ("category_id", "name", "brand", "model", "serial_number", "purchase_date", "purchase_price",
-                  "warranty_end_date", "expiry_date", "notes"):
+                  "warranty_months", "warranty_end_date", "expiry_date", "notes"):
         if field in data:
             setattr(asset, field, data[field])
 
@@ -172,7 +177,7 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
             asset.broken_date = broken_date
         _check_status_fields(category, asset.status, asset.sale_date, asset.sale_price, asset.broken_date, check_flags=False)
 
-    force_warranty = "purchase_date" in data and "warranty_end_date" not in data
+    force_warranty = any(f in data for f in ("category_id", "purchase_date", "warranty_months"))
     _apply_warranty(asset, category, force=force_warranty)
     db.commit()
     db.refresh(asset)

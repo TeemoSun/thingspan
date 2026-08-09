@@ -44,7 +44,7 @@ const EMPTY_FLAGS: FlagState = {
 };
 
 const FLAG_OPTIONS: { key: keyof FlagState; label: string; desc: string }[] = [
-  { key: "has_warranty", label: "保修期", desc: "资产可填写保修结束日期，可按购买日自动推算" },
+  { key: "has_warranty", label: "保修期", desc: "资产可填写保修月数，自动推算保修结束日期" },
   { key: "has_expiry", label: "到期日期", desc: "资产可填写到期日期，到期后自动标记已过期" },
   { key: "can_sell", label: "可售出", desc: "资产可标记已售出，填写售出日期与价格" },
   { key: "can_break", label: "可损坏", desc: "资产可标记已损坏，填写损坏日期" },
@@ -54,7 +54,7 @@ const FLAG_OPTIONS: { key: keyof FlagState; label: string; desc: string }[] = [
 
 function paramBadges(category: Category): string[] {
   const items: string[] = [];
-  if (category.has_warranty) items.push(category.warranty_months ? `保修 ${category.warranty_months} 个月` : "保修期");
+  if (category.has_warranty) items.push("保修期");
   if (category.has_expiry) items.push("到期日期");
   if (category.can_sell) items.push("可售出");
   if (category.can_break) items.push("可损坏");
@@ -74,14 +74,12 @@ export default function Categories() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState("");
   const [flags, setFlags] = useState<FlagState>(EMPTY_FLAGS);
-  const [warrantyMonths, setWarrantyMonths] = useState("");
   const [formError, setFormError] = useState("");
 
   function openCreate() {
     setEditing(null);
     setName("");
     setFlags(EMPTY_FLAGS);
-    setWarrantyMonths("");
     setFormError("");
     setOpen(true);
   }
@@ -97,7 +95,6 @@ export default function Categories() {
       has_serial: category.has_serial,
       has_model: category.has_model,
     });
-    setWarrantyMonths(category.warranty_months ? String(category.warranty_months) : "");
     setFormError("");
     setOpen(true);
   }
@@ -107,7 +104,6 @@ export default function Categories() {
       const payload = {
         name,
         ...flags,
-        warranty_months: flags.has_warranty && warrantyMonths ? parseInt(warrantyMonths, 10) : null,
       };
       return editing
         ? api<Category>(`/api/categories/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) })
@@ -249,24 +245,6 @@ export default function Categories() {
                       </div>
                     </label>
                   ))}
-                  {flags.has_warranty && (
-                    <div className="flex items-center gap-3 pl-7">
-                      <Label htmlFor="cat-warranty" className="text-sm font-medium">
-                        保修月数
-                      </Label>
-                      <Input
-                        id="cat-warranty"
-                        type="number"
-                        min="1"
-                        max="240"
-                        className="w-28"
-                        value={warrantyMonths}
-                        onChange={(e) => setWarrantyMonths(e.target.value)}
-                        placeholder="如 12"
-                      />
-                      <p className="text-xs text-muted-foreground">按购买日自动推算保修结束日期</p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
