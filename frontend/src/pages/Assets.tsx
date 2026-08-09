@@ -133,7 +133,7 @@ export default function Assets() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="搜索名称 / 品牌 / 型号 / 序列号"
@@ -143,7 +143,7 @@ export default function Assets() {
           />
         </div>
         <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="全部类别" />
           </SelectTrigger>
           <SelectContent>
@@ -156,7 +156,7 @@ export default function Assets() {
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-full sm:w-32">
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
@@ -196,9 +196,15 @@ export default function Assets() {
             <TableHeader>
               <TableRow>
                 <TableHead>名称</TableHead>
-                <TableHead>类别</TableHead>
+                <TableHead className="hidden md:table-cell">类别</TableHead>
                 <TableHead>状态</TableHead>
-                <SortableHead field="purchase_date" label="购买日期" sort={sort} onToggle={toggleSort} />
+                <SortableHead
+                  field="purchase_date"
+                  label="购买日期"
+                  sort={sort}
+                  onToggle={toggleSort}
+                  className="hidden lg:table-cell"
+                />
                 <SortableHead field="purchase_price" label="价格" sort={sort} onToggle={toggleSort} />
                 <SortableHead
                   field="daily_cost"
@@ -236,11 +242,11 @@ export default function Assets() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{asset.category_name}</TableCell>
+                  <TableCell className="hidden md:table-cell">{asset.category_name}</TableCell>
                   <TableCell>
                     <StatusBadge status={asset.status} />
                   </TableCell>
-                  <TableCell>{fmtDate(asset.purchase_date)}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{fmtDate(asset.purchase_date)}</TableCell>
                   <TableCell>{fmtMoneyShort(asset.purchase_price)}</TableCell>
                   <TableCell className="text-right">{fmtMoney(asset.cost.daily_cost)}</TableCell>
                   <TableCell>

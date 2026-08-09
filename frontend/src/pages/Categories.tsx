@@ -160,7 +160,7 @@ export default function Categories() {
             <TableRow>
               <TableHead>名称</TableHead>
               <TableHead>资产参数</TableHead>
-              <TableHead className="text-right">资产数</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">资产数</TableHead>
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
@@ -192,7 +192,7 @@ export default function Categories() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">{category.assets_count}</TableCell>
+                  <TableCell className="hidden text-right sm:table-cell">{category.assets_count}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(category)}>

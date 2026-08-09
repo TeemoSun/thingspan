@@ -194,14 +194,14 @@ export default function AssetDetail() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate("/assets")}>
             <IconArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            {!isNew && asset?.icon && <AssetIcon name={asset.icon} className="h-5 w-5" />}
-            {isNew ? "新建资产" : asset?.name}
+          <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold">
+            {!isNew && asset?.icon && <AssetIcon name={asset.icon} className="h-5 w-5 shrink-0" />}
+            <span className="truncate">{isNew ? "新建资产" : asset?.name}</span>
           </h1>
           {!isNew && asset && <StatusBadge status={asset.status} />}
         </div>
@@ -423,7 +423,7 @@ export default function AssetDetail() {
             <DialogTitle>标记已售出</DialogTitle>
             <DialogDescription>填写售出日期与售价，日均成本将按持有期计算</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>售出日期</Label>
               <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />

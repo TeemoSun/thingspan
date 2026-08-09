@@ -50,7 +50,7 @@ export default function Reminders() {
               <TableHead>资产</TableHead>
               <TableHead>到期日期</TableHead>
               <TableHead>提前天数</TableHead>
-              <TableHead>发送时间</TableHead>
+              <TableHead className="hidden sm:table-cell">发送时间</TableHead>
               <TableHead>状态</TableHead>
               <TableHead className="w-24" />
             </TableRow>
@@ -75,7 +75,7 @@ export default function Reminders() {
                 </TableCell>
                 <TableCell>{fmtDate(reminder.target_date)}</TableCell>
                 <TableCell>{reminder.lead_days} 天前</TableCell>
-                <TableCell className="text-muted-foreground">{fmtDateTime(reminder.sent_at)}</TableCell>
+                <TableCell className="hidden text-muted-foreground sm:table-cell">{fmtDateTime(reminder.sent_at)}</TableCell>
                 <TableCell>
                   {!reminder.sent ? (
                     <Badge variant="destructive">发送失败，次日重试</Badge>
