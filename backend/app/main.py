@@ -8,7 +8,6 @@ from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api import assets, auth, categories, dashboard, reminders
 from app.config import settings
@@ -77,12 +76,14 @@ def health() -> dict:
 
 
 if (STATIC_DIR / "index.html").exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="static-assets")
-
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str):
         if full_path.startswith("api/"):
             from fastapi import HTTPException
 
             raise HTTPException(status_code=404, detail="Not Found")
+        if full_path.startswith("assets/"):
+            candidate = STATIC_DIR / "assets" / full_path.removeprefix("assets/")
+            if candidate.is_file():
+                return FileResponse(candidate)
         return FileResponse(STATIC_DIR / "index.html")

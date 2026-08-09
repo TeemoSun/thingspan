@@ -50,7 +50,7 @@ const FORMULA_LABELS: Record<string, string> = {
 
 export default function AssetDetail() {
   const { id } = useParams();
-  const isNew = id === "new";
+  const isNew = id === "new" || id === undefined;
   const assetId = isNew ? null : Number(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
