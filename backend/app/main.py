@@ -83,8 +83,7 @@ if (STATIC_DIR / "index.html").exists():
             from fastapi import HTTPException
 
             raise HTTPException(status_code=404, detail="Not Found")
-        if full_path.startswith("assets/"):
-            candidate = STATIC_DIR / "assets" / full_path.removeprefix("assets/")
-            if candidate.is_file():
-                return FileResponse(candidate)
+        candidate = STATIC_DIR / "assets" / full_path.removeprefix("assets/") if full_path.startswith("assets/") else STATIC_DIR / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
         return FileResponse(STATIC_DIR / "index.html")
