@@ -40,6 +40,7 @@ class Asset(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     name: Mapped[str] = mapped_column(String(200))
+    icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
     brand: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     serial_number: Mapped[str | None] = mapped_column(String(100), nullable=True)

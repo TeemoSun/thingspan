@@ -38,6 +38,7 @@ docker build -t pigzho/thingspan:latest .
 - **保修推算**：类别勾选 `has_warranty` 且资产填写了 `warranty_months` 时，保修结束日 = 购买日 + 月数×30 天（月数在新建/编辑资产时填写，不同资产可不同，不在类别上配置）。新建或请求带 `purchase_date` / `warranty_months` / `category_id` 时强制重算（force，月数置空则清空结束日期），否则保留已有结束日期；`api/assets.py` 的 `_apply_warranty` 是唯一入口，前端 `AssetDetail.tsx` 只展示推算预览（不提交 `warranty_end_date`）——不要破坏这条链路。
 - **类别勾选参数**（`models.py` Category）：`has_warranty` / `has_expiry` / `can_sell` / `can_break` / `has_serial` / `has_model` 六个布尔勾选，无自由自定义字段。状态校验（`api/assets.py`）：进入 sold 必填 sale_date + sale_price、进入 broken 必填 broken_date，且只在状态流转时校验 `can_sell`/`can_break` 勾选（存量售出/损坏资产在类别取消勾选后仍可编辑，不拦截）；离开 sold/broken 清空对应字段；已处于 sold/broken 时写入这些字段仍做必填校验（不允许置 null）。
 - **提醒扫描**（`services/reminder.py`）：窗口匹配（基准日 ∈ [今天, 今天+lead]），每资产每天最多一封、每档最多一次；`ReminderLog.sent=False` 表示发送失败，次日自动重试；只有勾选 `has_expiry` 类别的资产到期才会自动标记 `expired`。
+- **到期状态自动同步**（`services/cost.py` 的 `sync_expiry_status`）：勾选 `has_expiry` 类别的资产，读取（列表/详情）与写入（新建/编辑）时按到期日自动判定——到期日已过 → `expired`，到期日改到未来或清空 → 恢复 `in_use`；expired 成本 = 价格/有效天数（到期日−购买日），不随今日增长。提醒扫描的每日标记为兜底。
 - **前端状态**：Token 存 localStorage；`lib/api.ts` 遇 401 自动用 refresh 换新后重试一次，失败跳登录页；后端 refresh 轮换并吊销旧 jti（内存实现，重启失效）。
 
 ## 变更检查清单

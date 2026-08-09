@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login } from "@/lib/api";
+import { usePageTitle } from "@/lib/hooks";
 
 export default function Login() {
+  usePageTitle("登录");
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

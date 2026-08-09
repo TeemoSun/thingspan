@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { fmtMoney, fmtMoneyShort } from "@/lib/format";
 import type { Dashboard } from "@/lib/types";
+import { usePageTitle } from "@/lib/hooks";
 
 function StatCard({
   title,
@@ -42,6 +43,7 @@ function StatCard({
 }
 
 export default function Dashboard() {
+  usePageTitle("仪表盘");
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api<Dashboard>("/api/dashboard"),

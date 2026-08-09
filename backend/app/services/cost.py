@@ -42,6 +42,19 @@ def calc_cost(asset: Asset, today: date) -> CostInfo:
     return CostInfo(period_days=max(days, 0), total_cost=total_cost, daily_cost=daily_cost, formula=formula)
 
 
+def sync_expiry_status(asset: Asset, today: date) -> bool:
+    """勾选「到期日期」类别的资产，按到期日自动同步状态：过期则标记已过期，日期改到未来则恢复使用中。"""
+    if asset.category is None or not asset.category.has_expiry:
+        return False
+    if asset.status == AssetStatus.in_use.value and asset.expiry_date is not None and asset.expiry_date < today:
+        asset.status = AssetStatus.expired.value
+        return True
+    if asset.status == AssetStatus.expired.value and (asset.expiry_date is None or asset.expiry_date >= today):
+        asset.status = AssetStatus.in_use.value
+        return True
+    return False
+
+
 def reminder_base_date(asset: Asset) -> date | None:
     """提醒基准日期：保修结束日期或到期日期，取非空者（优先保修）。"""
     return asset.warranty_end_date or asset.expiry_date

@@ -53,6 +53,7 @@ class CategoryOut(BaseModel):
 class AssetBase(BaseModel):
     category_id: int
     name: str = Field(min_length=1, max_length=100)
+    icon: str | None = Field(default=None, max_length=50)
     brand: str | None = None
     model: str | None = None
     serial_number: str | None = None
@@ -79,6 +80,7 @@ class AssetCreate(AssetBase):
 class AssetUpdate(BaseModel):
     category_id: int | None = None
     name: str | None = Field(default=None, min_length=1, max_length=100)
+    icon: str | None = Field(default=None, max_length=50)
     brand: str | None = None
     model: str | None = None
     serial_number: str | None = None
@@ -108,6 +110,7 @@ class AssetOut(BaseModel):
     category_id: int
     category_name: str = ""
     name: str
+    icon: str | None = None
     brand: str | None
     model: str | None
     serial_number: str | None

@@ -14,8 +14,10 @@ import {
 import { api } from "@/lib/api";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import type { ReminderLog } from "@/lib/types";
+import { usePageTitle } from "@/lib/hooks";
 
 export default function Reminders() {
+  usePageTitle("提醒记录");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: reminders, isLoading, error } = useQuery({

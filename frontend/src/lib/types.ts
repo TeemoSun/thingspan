@@ -24,6 +24,7 @@ export interface Asset {
   category_id: number;
   category_name: string;
   name: string;
+  icon: string | null;
   brand: string | null;
   model: string | null;
   serial_number: string | null;

@@ -10,7 +10,7 @@ from app.api.deps import require_auth
 from app.database import get_db, local_now
 from app.models import Asset, AssetStatus, Category
 from app.schemas import AssetCreate, AssetListOut, AssetOut, AssetUpdate
-from app.services.cost import calc_cost
+from app.services.cost import calc_cost, sync_expiry_status
 
 router = APIRouter(prefix="/api/assets", tags=["assets"], dependencies=[Depends(require_auth)])
 
@@ -22,6 +22,7 @@ def _to_out(asset: Asset) -> AssetOut:
         category_id=asset.category_id,
         category_name=asset.category.name if asset.category else "",
         name=asset.name,
+        icon=asset.icon,
         brand=asset.brand,
         model=asset.model,
         serial_number=asset.serial_number,
@@ -77,6 +78,8 @@ def list_assets(
     category_id: int | None = None,
     status: str | None = None,
     search: str | None = Query(default=None, max_length=100),
+    sort_by: str | None = Query(default=None, pattern="^(purchase_date|purchase_price|daily_cost)$"),
+    sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
 ) -> AssetListOut:
     query = select(Asset)
     if category_id:
@@ -95,7 +98,22 @@ def list_assets(
         )
     query = query.order_by(Asset.created_at.desc())
     items = db.scalars(query).all()
-    return AssetListOut(items=[_to_out(a) for a in items], total=len(items))
+    today = local_now().date()
+    changed = False
+    for a in items:
+        changed = sync_expiry_status(a, today) or changed
+    if changed:
+        db.commit()
+    outs = [_to_out(a) for a in items]
+    if sort_by:
+        if sort_by == "purchase_date":
+            key = lambda a: a.purchase_date
+        elif sort_by == "purchase_price":
+            key = lambda a: a.purchase_price
+        else:
+            key = lambda a: (a.cost.daily_cost if a.cost else 0.0)
+        outs.sort(key=key, reverse=(sort_dir == "desc"))
+    return AssetListOut(items=outs, total=len(outs))
 
 
 @router.post("", response_model=AssetOut)
@@ -105,6 +123,7 @@ def create_asset(body: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
     asset = Asset(
         category_id=body.category_id,
         name=body.name,
+        icon=body.icon,
         brand=body.brand,
         model=body.model,
         serial_number=body.serial_number,
@@ -120,6 +139,8 @@ def create_asset(body: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
         notes=body.notes,
     )
     _apply_warranty(asset, category)
+    asset.category = category
+    sync_expiry_status(asset, local_now().date())
     db.add(asset)
     db.commit()
     db.refresh(asset)
@@ -131,6 +152,8 @@ def get_asset(asset_id: int, db: Session = Depends(get_db)) -> AssetOut:
     asset = db.get(Asset, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
+    if sync_expiry_status(asset, local_now().date()):
+        db.commit()
     return _to_out(asset)
 
 
@@ -161,7 +184,7 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
             asset.broken_date = None
         asset.status = status
 
-    for field in ("category_id", "name", "brand", "model", "serial_number", "purchase_date", "purchase_price",
+    for field in ("category_id", "name", "icon", "brand", "model", "serial_number", "purchase_date", "purchase_price",
                   "warranty_months", "warranty_end_date", "expiry_date", "notes"):
         if field in data:
             setattr(asset, field, data[field])
@@ -179,6 +202,7 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
 
     force_warranty = any(f in data for f in ("category_id", "purchase_date", "warranty_months"))
     _apply_warranty(asset, category, force=force_warranty)
+    sync_expiry_status(asset, local_now().date())
     db.commit()
     db.refresh(asset)
     return _to_out(asset)

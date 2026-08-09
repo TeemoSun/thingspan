@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { api } from "@/lib/api";
 import type { Category } from "@/lib/types";
+import { usePageTitle } from "@/lib/hooks";
 
 interface FlagState {
   has_warranty: boolean;
@@ -64,6 +65,7 @@ function paramBadges(category: Category): string[] {
 }
 
 export default function Categories() {
+  usePageTitle("类别");
   const queryClient = useQueryClient();
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ["categories"],

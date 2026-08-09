@@ -26,10 +26,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { fmtDate, fmtMoney, fmtMoneyShort, todayStr } from "@/lib/format";
+import { usePageTitle } from "@/lib/hooks";
+import { ASSET_ICONS, AssetIcon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { type Asset, type Category } from "@/lib/types";
 
 interface FormState {
   name: string;
+  icon: string;
   category_id: string;
   brand: string;
   model: string;
@@ -64,9 +68,11 @@ export default function AssetDetail() {
     queryFn: () => api<Asset>(`/api/assets/${assetId}`),
     enabled: !isNew,
   });
+  usePageTitle(isNew ? "新建资产" : asset?.name || "资产详情");
 
   const [form, setForm] = useState<FormState>({
     name: "",
+    icon: "",
     category_id: "",
     brand: "",
     model: "",
@@ -88,6 +94,7 @@ export default function AssetDetail() {
     if (!asset) return;
     setForm({
       name: asset.name,
+      icon: asset.icon ?? "",
       category_id: String(asset.category_id),
       brand: asset.brand ?? "",
       model: asset.model ?? "",
@@ -119,6 +126,7 @@ export default function AssetDetail() {
     const payload = {
       category_id: Number(form.category_id),
       name: form.name,
+      icon: form.icon || null,
       brand: form.brand || null,
       model: form.model || null,
       serial_number: form.serial_number || null,
@@ -190,7 +198,10 @@ export default function AssetDetail() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/assets")}>
             <IconArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold">{isNew ? "新建资产" : asset?.name}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            {!isNew && asset?.icon && <AssetIcon name={asset.icon} className="h-5 w-5" />}
+            {isNew ? "新建资产" : asset?.name}
+          </h1>
           {!isNew && asset && <StatusBadge status={asset.status} />}
         </div>
         {!isNew && (
@@ -298,6 +309,26 @@ export default function AssetDetail() {
               <div className="space-y-2">
                 <Label htmlFor="name">名称 *</Label>
                 <Input id="name" value={form.name} onChange={(e) => setField("name", e.target.value)} required placeholder="如 iPhone 16 Pro" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>图标</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ASSET_ICONS.map((opt) => (
+                    <button
+                      key={opt.name}
+                      type="button"
+                      title={opt.label}
+                      aria-pressed={form.icon === opt.name}
+                      onClick={() => setField("icon", form.icon === opt.name ? "" : opt.name)}
+                      className={cn(
+                        "rounded-md border p-1.5 hover:bg-muted",
+                        form.icon === opt.name && "border-primary bg-primary/10"
+                      )}
+                    >
+                      <AssetIcon name={opt.name} size={18} />
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>类别 *</Label>

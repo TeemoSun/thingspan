@@ -23,24 +23,82 @@ import {
 } from "@/components/ui/table";
 import { api } from "@/lib/api";
 import { fmtDate, fmtMoney, fmtMoneyShort } from "@/lib/format";
+import { usePageTitle } from "@/lib/hooks";
+import { AssetIcon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { STATUS_LABELS, type AssetList, type AssetStatus, type Category } from "@/lib/types";
 
+type SortField = "purchase_date" | "purchase_price" | "daily_cost";
+
+interface SortState {
+  by: SortField;
+  dir: "asc" | "desc";
+}
+
+function SortableHead({
+  field,
+  label,
+  sort,
+  onToggle,
+  className,
+  align = "left",
+}: {
+  field: SortField;
+  label: string;
+  sort: SortState | null;
+  onToggle: (field: SortField) => void;
+  className?: string;
+  align?: "left" | "right";
+}) {
+  const active = sort?.by === field;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onToggle(field)}
+        className={cn(
+          "inline-flex w-full select-none items-center gap-1 hover:text-foreground",
+          align === "right" ? "justify-end" : "justify-start",
+          active && "text-foreground"
+        )}
+      >
+        {label}
+        {active && <span aria-hidden>{sort!.dir === "asc" ? "↑" : "↓"}</span>}
+      </button>
+    </TableHead>
+  );
+}
+
 export default function Assets() {
+  usePageTitle("资产");
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("");
+  const [sort, setSort] = useState<SortState | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
+  function toggleSort(by: SortField) {
+    setSort((prev) => {
+      if (!prev || prev.by !== by) return { by, dir: "asc" };
+      if (prev.dir === "asc") return { by, dir: "desc" };
+      return null;
+    });
+  }
+
   const params = new URLSearchParams();
   if (debounced) params.set("search", debounced);
   if (categoryId) params.set("category_id", categoryId);
   if (status) params.set("status", status);
+  if (sort) {
+    params.set("sort_by", sort.by);
+    params.set("sort_dir", sort.dir);
+  }
   const query = params.toString();
 
   const { data, isLoading, error } = useQuery({
@@ -112,9 +170,16 @@ export default function Assets() {
                 <TableHead>名称</TableHead>
                 <TableHead>类别</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>购买日期</TableHead>
-                <TableHead>价格</TableHead>
-                <TableHead className="text-right">日均成本</TableHead>
+                <SortableHead field="purchase_date" label="购买日期" sort={sort} onToggle={toggleSort} />
+                <SortableHead field="purchase_price" label="价格" sort={sort} onToggle={toggleSort} />
+                <SortableHead
+                  field="daily_cost"
+                  label="日均成本"
+                  sort={sort}
+                  onToggle={toggleSort}
+                  className="text-right"
+                  align="right"
+                />
                 <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
@@ -129,12 +194,19 @@ export default function Assets() {
               {data.items.map((asset) => (
                 <TableRow key={asset.id}>
                   <TableCell>
-                    <div className="font-medium">{asset.name}</div>
-                    {asset.brand || asset.model ? (
-                      <div className="text-xs text-muted-foreground">
-                        {[asset.brand, asset.model].filter(Boolean).join(" · ")}
+                    <div className="flex items-center gap-2">
+                      {asset.icon && (
+                        <AssetIcon name={asset.icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <div>
+                        <div className="font-medium">{asset.name}</div>
+                        {asset.brand || asset.model ? (
+                          <div className="text-xs text-muted-foreground">
+                            {[asset.brand, asset.model].filter(Boolean).join(" · ")}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>{asset.category_name}</TableCell>
                   <TableCell>
