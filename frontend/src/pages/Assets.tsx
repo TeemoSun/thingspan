@@ -80,7 +80,7 @@ export default function Assets() {
   const [debounced, setDebounced] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("");
-  const [sort, setSort] = useState<SortState | null>(null);
+  const [sort, setSort] = useState<SortState | null>({ by: "purchase_date", dir: "desc" });
   const [view, setView] = useState<"list" | "grid">(
     () => (localStorage.getItem("thingspan_assets_view") as "list" | "grid") ?? "list"
   );
