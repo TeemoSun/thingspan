@@ -1,0 +1,479 @@
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { IconArrowLeft, IconCalendarEvent, IconCoins, IconTag, IconTrash } from "@tabler/icons-react";
+
+import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/lib/api";
+import { fmtDate, fmtMoney, fmtMoneyShort, todayStr } from "@/lib/format";
+import { type Asset, type Category } from "@/lib/types";
+
+interface FormState {
+  name: string;
+  category_id: string;
+  brand: string;
+  model: string;
+  serial_number: string;
+  purchase_date: string;
+  purchase_price: string;
+  warranty_end_date: string;
+  expiry_date: string;
+  notes: string;
+  custom: Record<string, string>;
+}
+
+const FORMULA_LABELS: Record<string, string> = {
+  in_use: "使用中（价格 ÷ 已用天数）",
+  sold: "已售出（买入 − 卖出）÷ 持有天数",
+  broken: "已损坏（价格 ÷ 使用天数）",
+  expired: "已到期（价格 ÷ 有效天数）",
+};
+
+export default function AssetDetail() {
+  const { id } = useParams();
+  const isNew = id === "new";
+  const assetId = isNew ? null : Number(id);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api<Category[]>("/api/categories"),
+  });
+  const { data: asset, isLoading: assetLoading } = useQuery({
+    queryKey: ["asset", assetId],
+    queryFn: () => api<Asset>(`/api/assets/${assetId}`),
+    enabled: !isNew,
+  });
+
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    category_id: "",
+    brand: "",
+    model: "",
+    serial_number: "",
+    purchase_date: todayStr(),
+    purchase_price: "",
+    warranty_end_date: "",
+    expiry_date: "",
+    notes: "",
+    custom: {},
+  });
+  const [error, setError] = useState("");
+  const [sellOpen, setSellOpen] = useState(false);
+  const [brokenOpen, setBrokenOpen] = useState(false);
+  const [saleDate, setSaleDate] = useState(todayStr());
+  const [salePrice, setSalePrice] = useState("");
+  const [brokenDate, setBrokenDate] = useState(todayStr());
+
+  useEffect(() => {
+    if (!asset) return;
+    setForm({
+      name: asset.name,
+      category_id: String(asset.category_id),
+      brand: asset.brand ?? "",
+      model: asset.model ?? "",
+      serial_number: asset.serial_number ?? "",
+      purchase_date: asset.purchase_date,
+      purchase_price: String(asset.purchase_price),
+      warranty_end_date: asset.warranty_end_date ?? "",
+      expiry_date: asset.expiry_date ?? "",
+      notes: asset.notes ?? "",
+      custom: Object.fromEntries(Object.entries(asset.custom_values).map(([k, v]) => [k, String(v)])),
+    });
+  }, [asset]);
+
+  const category = useMemo(
+    () => (categories ?? []).find((c) => c.id === Number(form.category_id)),
+    [categories, form.category_id]
+  );
+
+  function setField(field: keyof Omit<FormState, "custom">, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function setCustom(key: string, value: string) {
+    setForm((f) => ({ ...f, custom: { ...f.custom, [key]: value } }));
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!form.category_id) {
+      setError("请选择类别");
+      return;
+    }
+    const payload = {
+      category_id: Number(form.category_id),
+      name: form.name,
+      brand: form.brand || null,
+      model: form.model || null,
+      serial_number: form.serial_number || null,
+      purchase_date: form.purchase_date,
+      purchase_price: parseFloat(form.purchase_price) || 0,
+      warranty_end_date: form.warranty_end_date || null,
+      expiry_date: form.expiry_date || null,
+      notes: form.notes || null,
+      custom_values: form.custom,
+    };
+    try {
+      const saved = isNew
+        ? await api<Asset>("/api/assets", { method: "POST", body: JSON.stringify(payload) })
+        : await api<Asset>(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify(payload) });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      navigate(`/assets/${saved.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败");
+    }
+  }
+
+  const statusMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) =>
+      api<Asset>(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify(payload) }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["asset", assetId] });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setSellOpen(false);
+      setBrokenOpen(false);
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "操作失败"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api<{ ok: boolean }>(`/api/assets/${assetId}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      navigate("/assets");
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "删除失败"),
+  });
+
+  const showProductFields = category?.template === "product";
+  const showMembershipField = category?.template === "membership";
+
+  if (assetLoading) return <p className="text-muted-foreground">加载中…</p>;
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/assets")}>
+            <IconArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-bold">{isNew ? "新建资产" : asset?.name}</h1>
+          {!isNew && asset && <StatusBadge status={asset.status} />}
+        </div>
+        {!isNew && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => {
+              if (window.confirm(`确定删除「${asset?.name}」吗？此操作不可恢复。`)) deleteMutation.mutate();
+            }}
+          >
+            <IconTrash className="h-4 w-4" />
+            删除
+          </Button>
+        )}
+      </div>
+
+      {!isNew && asset && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <IconCoins className="h-4 w-4 text-muted-foreground" />
+              日均成本
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-6">
+              <div>
+                <div className="text-3xl font-bold">{fmtMoney(asset.cost.daily_cost)}</div>
+                <p className="text-xs text-muted-foreground">每天</p>
+              </div>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>累计成本：{fmtMoney(asset.cost.total_cost)}</p>
+                <p>统计周期：{asset.cost.period_days} 天</p>
+                <p>口径：{FORMULA_LABELS[asset.cost.formula] ?? asset.cost.formula}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isNew && asset && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <IconCalendarEvent className="h-4 w-4 text-muted-foreground" />
+              状态与日期
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {asset.status === "sold" && (
+              <p className="text-sm text-muted-foreground">
+                已于 {fmtDate(asset.sale_date)} 售出，售价 {fmtMoneyShort(asset.sale_price)}
+              </p>
+            )}
+            {asset.status === "broken" && (
+              <p className="text-sm text-muted-foreground">已于 {fmtDate(asset.broken_date)} 损坏</p>
+            )}
+            {asset.status === "expired" && (
+              <p className="text-sm text-muted-foreground">
+                已于 {fmtDate(asset.expiry_date)} 到期
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {asset.status === "in_use" && (showProductFields || category?.template === "other") && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setSellOpen(true)}>
+                    标记已售出
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setBrokenOpen(true)}>
+                    标记已损坏
+                  </Button>
+                </>
+              )}
+              {(asset.status === "sold" || asset.status === "broken") && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => statusMutation.mutate({ status: "in_use" })}
+                  disabled={statusMutation.isPending}
+                >
+                  恢复使用中
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IconTag className="h-4 w-4 text-muted-foreground" />
+            基本信息
+          </CardTitle>
+          {!isNew && <CardDescription>编辑后点击保存生效</CardDescription>}
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">名称 *</Label>
+                <Input id="name" value={form.name} onChange={(e) => setField("name", e.target.value)} required placeholder="如 iPhone 16 Pro" />
+              </div>
+              <div className="space-y-2">
+                <Label>类别 *</Label>
+                <Select
+                  value={form.category_id}
+                  onValueChange={(v) => {
+                    setField("category_id", v);
+                    const next = (categories ?? []).find((c) => c.id === Number(v));
+                    const allowed = new Set((next?.fields ?? []).map((f) => f.key));
+                    setForm((f) => ({
+                      ...f,
+                      custom: Object.fromEntries(
+                        Object.entries(f.custom).filter(([k]) => allowed.has(k))
+                      ),
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择类别" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(categories ?? []).map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {showProductFields && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="brand">品牌</Label>
+                    <Input id="brand" value={form.brand} onChange={(e) => setField("brand", e.target.value)} placeholder="如 Apple" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="model">型号</Label>
+                    <Input id="model" value={form.model} onChange={(e) => setField("model", e.target.value)} placeholder="如 A3101" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="serial">序列号</Label>
+                    <Input id="serial" value={form.serial_number} onChange={(e) => setField("serial_number", e.target.value)} />
+                  </div>
+                </>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="purchase_date">购买日期 *</Label>
+                <Input
+                  id="purchase_date"
+                  type="date"
+                  value={form.purchase_date}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      purchase_date: v,
+                      warranty_end_date: category?.warranty_months ? "" : f.warranty_end_date,
+                    }));
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="purchase_price">购买价格（元）*</Label>
+                <Input id="purchase_price" type="number" min="0" step="0.01" value={form.purchase_price} onChange={(e) => setField("purchase_price", e.target.value)} required placeholder="如 5999" />
+              </div>
+              {showProductFields && (
+                <div className="space-y-2">
+                  <Label htmlFor="warranty_end">保修结束日期</Label>
+                  <Input id="warranty_end" type="date" value={form.warranty_end_date} onChange={(e) => setField("warranty_end_date", e.target.value)} />
+                  {category?.warranty_months ? (
+                    <p className="text-xs text-muted-foreground">
+                      该类别按购买日 + {category.warranty_months} 个月自动推算，留空即可
+                    </p>
+                  ) : null}
+                </div>
+              )}
+              {showMembershipField && (
+                <div className="space-y-2">
+                  <Label htmlFor="expiry">到期日期</Label>
+                  <Input id="expiry" type="date" value={form.expiry_date} onChange={(e) => setField("expiry_date", e.target.value)} />
+                </div>
+              )}
+              {category?.fields.map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <Label htmlFor={`custom-${field.key}`}>{field.name}</Label>
+                  {field.type === "date" ? (
+                    <Input
+                      id={`custom-${field.key}`}
+                      type="date"
+                      value={form.custom[field.key] ?? ""}
+                      onChange={(e) => setCustom(field.key, e.target.value)}
+                    />
+                  ) : field.type === "number" ? (
+                    <Input
+                      id={`custom-${field.key}`}
+                      type="number"
+                      step="0.01"
+                      value={form.custom[field.key] ?? ""}
+                      onChange={(e) => setCustom(field.key, e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      id={`custom-${field.key}`}
+                      value={form.custom[field.key] ?? ""}
+                      onChange={(e) => setCustom(field.key, e.target.value)}
+                    />
+                  )}
+                </div>
+              ))}
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="notes">备注</Label>
+                <Textarea id="notes" value={form.notes} onChange={(e) => setField("notes", e.target.value)} placeholder="可选，记录购买渠道、凭证等" />
+              </div>
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => navigate("/assets")}>
+                取消
+              </Button>
+              <Button type="submit" disabled={statusMutation.isPending}>
+                保存
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Dialog open={sellOpen} onOpenChange={setSellOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>标记已售出</DialogTitle>
+            <DialogDescription>填写售出日期与售价，日均成本将按持有期计算</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>售出日期</Label>
+              <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>售出价格（元）</Label>
+              <Input type="number" min="0" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="如 4000" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSellOpen(false)}>
+              取消
+            </Button>
+            <Button
+              disabled={!saleDate || !salePrice || statusMutation.isPending}
+              onClick={() =>
+                statusMutation.mutate({
+                  status: "sold",
+                  sale_date: saleDate,
+                  sale_price: parseFloat(salePrice),
+                })
+              }
+            >
+              确认售出
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={brokenOpen} onOpenChange={setBrokenOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>标记已损坏</DialogTitle>
+            <DialogDescription>填写损坏日期，日均成本将按截至损坏日的使用期计算</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>损坏日期</Label>
+            <Input type="date" value={brokenDate} onChange={(e) => setBrokenDate(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBrokenOpen(false)}>
+              取消
+            </Button>
+            <Button
+              disabled={!brokenDate || statusMutation.isPending}
+              onClick={() => statusMutation.mutate({ status: "broken", broken_date: brokenDate })}
+            >
+              确认损坏
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

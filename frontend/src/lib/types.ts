@@ -1,0 +1,100 @@
+export type Template = "product" | "membership" | "other";
+export type AssetStatus = "in_use" | "sold" | "broken" | "expired";
+export type FieldType = "text" | "date" | "number";
+
+export interface FieldDef {
+  key: string;
+  name: string;
+  type: FieldType;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  icon: string;
+  template: Template;
+  fields: FieldDef[];
+  warranty_months: number | null;
+  assets_count: number;
+}
+
+export interface CostInfo {
+  period_days: number;
+  total_cost: number;
+  daily_cost: number;
+  formula: string;
+}
+
+export interface Asset {
+  id: number;
+  category_id: number;
+  category_name: string;
+  category_template: Template;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  serial_number: string | null;
+  purchase_date: string;
+  purchase_price: number;
+  warranty_end_date: string | null;
+  expiry_date: string | null;
+  status: AssetStatus;
+  sale_date: string | null;
+  sale_price: number | null;
+  broken_date: string | null;
+  notes: string | null;
+  custom_values: Record<string, string | number>;
+  cost: CostInfo;
+}
+
+export interface AssetList {
+  items: Asset[];
+  total: number;
+}
+
+export interface ExpiringAsset {
+  id: number;
+  name: string;
+  category_name: string;
+  target_date: string;
+  days_left: number;
+  date_type: "warranty" | "expiry";
+}
+
+export interface Dashboard {
+  total_assets: number;
+  in_use_assets: number;
+  total_invested: number;
+  daily_cost_total: number;
+  expiring_soon: ExpiringAsset[];
+}
+
+export interface ReminderLog {
+  id: number;
+  asset_id: number;
+  asset_name: string;
+  target_date: string;
+  lead_days: number;
+  sent_at: string;
+  sent: boolean;
+  dismissed: boolean;
+}
+
+export const STATUS_LABELS: Record<AssetStatus, string> = {
+  in_use: "使用中",
+  sold: "已售出",
+  broken: "已损坏",
+  expired: "已过期",
+};
+
+export const TEMPLATE_LABELS: Record<Template, string> = {
+  product: "数码产品",
+  membership: "会员",
+  other: "其他",
+};
+
+export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
+  text: "文本",
+  date: "日期",
+  number: "数字",
+};
