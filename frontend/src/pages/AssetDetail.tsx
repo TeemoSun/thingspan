@@ -46,7 +46,7 @@ interface FormState {
 }
 
 const FORMULA_LABELS: Record<string, string> = {
-  in_use: "使用中（价格 ÷ 已用天数）",
+  in_use: "使用中（价格 ÷ 已用天数；有到期日按到期日计）",
   sold: "已售出（买入 − 卖出）÷ 持有天数",
   broken: "已损坏（价格 ÷ 使用天数）",
   expired: "已到期（价格 ÷ 有效天数）",

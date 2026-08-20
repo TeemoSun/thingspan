@@ -16,7 +16,7 @@ class CostInfo:
 def calc_cost(asset: Asset, today: date) -> CostInfo:
     """按状态计算日均成本。
 
-    - 使用中: 购买价 / 自购买起天数
+    - 使用中: 购买价 / 自购买起天数；勾选「到期日期」且有到期日时按 (到期日 - 购买日)
     - 已售出: (购买价 - 售出价) / (售出日 - 购买日)
     - 已损坏: 购买价 / (损坏日 - 购买日)
     - 已过期: 购买价 / (到期日 - 购买日)
@@ -32,6 +32,14 @@ def calc_cost(asset: Asset, today: date) -> CostInfo:
         days = (asset.broken_date - asset.purchase_date).days
         formula = AssetStatus.broken.value
     elif asset.status == AssetStatus.expired.value and asset.expiry_date:
+        days = (asset.expiry_date - asset.purchase_date).days
+        formula = AssetStatus.expired.value
+    elif (
+        asset.status == AssetStatus.in_use.value
+        and asset.expiry_date is not None
+        and asset.category is not None
+        and asset.category.has_expiry
+    ):
         days = (asset.expiry_date - asset.purchase_date).days
         formula = AssetStatus.expired.value
     else:
