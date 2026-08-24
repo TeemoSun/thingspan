@@ -33,14 +33,10 @@ let refreshing: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
   const refreshToken = localStorage.getItem(REFRESH_KEY);
-  const accessToken = localStorage.getItem(ACCESS_KEY);
-  if (!refreshToken || !accessToken) return false;
+  if (!refreshToken) return false;
   const res = await fetch("/api/auth/refresh", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
   if (!res.ok) return false;

@@ -4,7 +4,6 @@ from time import monotonic
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.api.deps import require_auth
 from app.schemas import LoginRequest, RefreshRequest, TokenResponse
 from app.security import create_access_token, create_refresh_token, decode_token, revoke_refresh, verify_password
 
@@ -38,7 +37,7 @@ def login(body: LoginRequest, request: Request) -> TokenResponse:
     return TokenResponse(access_token=create_access_token(), refresh_token=create_refresh_token())
 
 
-@router.post("/refresh", response_model=TokenResponse, dependencies=[Depends(require_auth)])
+@router.post("/refresh", response_model=TokenResponse)
 def refresh(body: RefreshRequest) -> TokenResponse:
     try:
         decode_token(body.refresh_token, "refresh")
