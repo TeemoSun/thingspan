@@ -1,11 +1,34 @@
+# Git and IDE
 .git
-docs
-.env
-data
-**/__pycache__
-**/*.pyc
-backend/.venv
-backend/app/static
+.gitignore
+.vscode
+.idea
+.gemini
+
+# Node / Frontend
 frontend/node_modules
 frontend/dist
+node_modules
+
+# Python / Backend
+backend/.venv
+backend/app/static
+backend/.pytest_cache
+backend/.ruff_cache
+**/__pycache__
+**/*.py[cod]
+*$py.class
+
+# Data and environment
+data/
+*.db
+*.sqlite3
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Documentation and temporary files
+docs/
+AGENTS.md
 *.log

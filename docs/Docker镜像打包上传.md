@@ -10,12 +10,14 @@
 
 ## Dockerfile 说明
 
-`Dockerfile` 为多阶段构建：
+`Dockerfile` 为 3 阶段多阶段构建，极致精简镜像体积并遵循分层缓存最佳实践：
 
-- **Stage 1 `frontend`**：基于 `node:20-alpine`，执行 `npm ci` + `npm run build`，产出前端 `dist`。
-- **Stage 2 `runtime`**：基于 `python:3.12-slim`，安装 `uv`（来自 `ghcr.io/astral-sh/uv:0.11.28`，锁定版本），`uv sync --frozen --no-dev` 安装后端依赖，拷入后端代码与前端 `dist`，暴露 `8000` 端口，以 exec 形式直接运行 uvicorn。
+- **Stage 1 `frontend`**：基于 `node:20-alpine`，挂载 npm 缓存执行 `npm ci` + `npm run build`，产出前端 `dist`。
+- **Stage 2 `backend-builder`**：基于 `python:3.12-alpine`，使用 `uv`（来自 `ghcr.io/astral-sh/uv:0.11.28`）在独立虚拟环境 `/opt/venv` 中预编译安装后端依赖。
+- **Stage 3 `runtime`**：基于 `python:3.12-alpine`（纯净运行底座 + `tzdata` 时区支持），从构建阶段直接拷入 `/opt/venv`，拷入后端代码、Alembic 迁移文件及前端 `dist`。最终镜像不含任何编译器与构建工具（无 `uv`/`gcc`/`npm`），体积仅约 41MB（压缩）/ 176MB（解包）。
 
-> 注意：alembic 迁移由 `app.main.lifespan` 在容器启动时自动执行，Dockerfile 不单独运行迁移。
+> 注意：根目录包含 `.dockerignore`，避免本地 `node_modules`、`.venv`、`.git` 与缓存文件进入构建上下文。
+> alembic 迁移由 `app.main.lifespan` 在容器启动时自动执行，Dockerfile 不单独运行迁移。
 > 镜像声明 `VOLUME ["/data"]` 与 `HEALTHCHECK`（探测 `/api/health`）；`APP_PASSWORD` / `JWT_SECRET` 为空或占位值时容器启动直接报错退出。
 
 ## tag 命名规范
