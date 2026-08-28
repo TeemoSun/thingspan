@@ -60,9 +60,11 @@ docker run -d \
 ## 本地开发
 
 ```bash
+# 根目录配置环境变量
+cp .env.example .env
+
 # 后端（Python 3.11+，需要 uv）
 cd backend
-cp .env.example .env   # 或手动创建 backend/.env
 uv sync
 uv run uvicorn app.main:app --reload --port 8000
 

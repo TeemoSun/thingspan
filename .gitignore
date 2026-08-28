@@ -16,9 +16,13 @@ backend/app/static/
 
 # Data & env
 data/
-.env
+backend/data/
+.env*
+!.env.example
 *.db
 *.db-journal
+*.sqlite
+*.sqlite3
 
 # Misc
 .DS_Store

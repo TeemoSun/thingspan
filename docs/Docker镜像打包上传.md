@@ -75,7 +75,7 @@ Docker CLI 不支持删除远程 tag，需通过 Docker Hub API：
 
 ```bash
 # 从 ~/.docker/config.json 读取登录凭证换取 JWT
-USERPASS=$(python3 -c 'import json; d=json.load(open("/home/teemo/.docker/config.json")); print(d["auths"]["https://index.docker.io/v1/"]["auth"])' | base64 -d)
+USERPASS=$(python3 -c 'import json, os; d=json.load(open(os.path.expanduser("~/.docker/config.json"))); print(d["auths"]["https://index.docker.io/v1/"]["auth"])' | base64 -d)
 USER=$(echo "$USERPASS" | cut -d: -f1)
 PASS=$(echo "$USERPASS" | cut -d: -f2-)
 TOKEN=$(curl -s "https://hub.docker.com/v2/users/login/" \

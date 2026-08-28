@@ -5,9 +5,9 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config as AlembicConfig
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.api import assets, auth, categories, dashboard, icons, reminders
 from app.config import settings
@@ -55,6 +55,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Thingspan", version="0.1.0", lifespan=lifespan)
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -83,7 +91,14 @@ if (STATIC_DIR / "index.html").exists():
             from fastapi import HTTPException
 
             raise HTTPException(status_code=404, detail="Not Found")
-        candidate = STATIC_DIR / "assets" / full_path.removeprefix("assets/") if full_path.startswith("assets/") else STATIC_DIR / full_path
-        if candidate.is_file():
-            return FileResponse(candidate)
+        try:
+            clean_path = full_path.removeprefix("assets/") if full_path.startswith("assets/") else full_path
+            clean_path = clean_path.lstrip("/")
+            target_base = (STATIC_DIR / "assets") if full_path.startswith("assets/") else STATIC_DIR
+            candidate = (target_base / clean_path).resolve()
+            static_resolved = STATIC_DIR.resolve()
+            if candidate.is_file() and candidate.is_relative_to(static_resolved):
+                return FileResponse(candidate)
+        except (ValueError, RuntimeError):
+            pass
         return FileResponse(STATIC_DIR / "index.html")

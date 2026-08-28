@@ -14,6 +14,13 @@ LOGIN_RATE_WINDOW = 60.0
 _login_attempts: dict[str, deque[float]] = {}
 
 
+def _get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def _check_login_rate(ip: str) -> None:
     now = monotonic()
     window_start = now - LOGIN_RATE_WINDOW
@@ -21,7 +28,13 @@ def _check_login_rate(ip: str) -> None:
     while recent and recent[0] <= window_start:
         recent.popleft()
     if len(recent) >= LOGIN_RATE_LIMIT:
-        raise HTTPException(status_code=429, detail="登录尝试过于频繁，请稍后再试")
+        raise HTTPException(status_code=429, detail="登录失败次数过多，请稍后再试")
+
+
+def _record_login_failure(ip: str) -> None:
+    now = monotonic()
+    window_start = now - LOGIN_RATE_WINDOW
+    recent = _login_attempts.setdefault(ip, deque())
     recent.append(now)
     if len(_login_attempts) > 1024:
         for key, vals in list(_login_attempts.items()):
@@ -31,8 +44,10 @@ def _check_login_rate(ip: str) -> None:
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, request: Request) -> TokenResponse:
-    _check_login_rate(request.client.host if request.client else "unknown")
+    ip = _get_client_ip(request)
+    _check_login_rate(ip)
     if not verify_password(body.password):
+        _record_login_failure(ip)
         raise HTTPException(status_code=401, detail="密码错误")
     return TokenResponse(access_token=create_access_token(), refresh_token=create_refresh_token())
 

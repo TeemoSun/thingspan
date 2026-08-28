@@ -29,7 +29,7 @@ docker build -t pigzho/thingspan:latest .
 
 ## 关键约定
 
-- **启动校验**：`.env` 的 `APP_PASSWORD` / `JWT_SECRET` 为空或占位值（`admin`/`change-me`）时启动直接报错退出（`main.py: validate_secrets`）。本地开发配置在 `backend/.env`（gitignored）。
+- **启动校验**：`.env` 的 `APP_PASSWORD` / `JWT_SECRET` 为空或占位值（`admin`/`change-me`）时启动直接报错退出（`main.py: validate_secrets`）。本地开发配置在项目根目录 `.env`（gitignored）。
 - **时区**：全站以 `TZ`（默认 Asia/Shanghai）本地 naive 时间存储与展示；成本计算、提醒、调度器都基于该时区的"今天"，不要引入 UTC。
 - **数据库**：SQLite 文件在 `$DATA_DIR/thingspan.db`。改模型必须生成 Alembic 迁移；SQLite 给已有表加 NOT NULL 列必须带 `server_default`（参考 `versions/a43a5729bc18`）。
 - **前端产物**：`frontend/dist/` 与 `backend/app/static/` 均 gitignored；镜像由 Dockerfile 多阶段构建。`main.py` 的 SPA 回退路由只在 `app/static/index.html` 存在时注册，`/api/*` 未知路径 404。
