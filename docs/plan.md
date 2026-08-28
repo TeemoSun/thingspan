@@ -9,7 +9,7 @@
 - 按类别组织资产，支持自定义类别，类别参数（保修期/到期日期/售出/损坏/序列号/型号）通过勾选配置
 - 支持资产状态流转：使用中 / 已售出 / 已损坏 / 已过期
 - 基于保修结束日期 / 到期日期，在到期前 30 / 7 / 1 天发送邮件提醒
-- 单容器 Docker 镜像发布到 DockerHub，数据落在挂载的 Data 目录
+- 单容器 Docker 镜像发布到 GitHub Container Registry (ghcr.io)，数据落在挂载的 Data 目录
 
 ## 2. 技术栈
 
@@ -20,7 +20,7 @@
 | 认证 | JWT 双 Token（Access 短期 + Refresh 长期轮换），密码启动时 bcrypt 哈希比对 |
 | 数据库 | SQLite（文件位于 `$DATA_DIR`），Alembic 迁移，启动时自动 `alembic upgrade head` |
 | 时区 | 环境变量配置，默认 `Asia/Shanghai`，影响提醒调度与成本计算 |
-| 部署 | 多阶段 Docker 构建，单容器（FastAPI 托管前端静态文件），发布至 DockerHub |
+| 部署 | 多阶段 Docker 构建，单容器（FastAPI 托管前端静态文件），发布至 GHCR (ghcr.io) |
 
 ## 3. 项目结构
 

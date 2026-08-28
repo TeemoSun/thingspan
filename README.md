@@ -22,7 +22,7 @@ docker run -d \
   -p 19234:8000 \
   -v "$(pwd)/data:/data" \
   --env-file .env \
-  pigzho/thingspan:latest
+  ghcr.io/teemosun/thingspan:latest
 ```
 
 访问 `http://localhost:19234`，使用 `.env` 中的 `APP_PASSWORD` 登录。

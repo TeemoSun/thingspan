@@ -23,8 +23,8 @@ npm run build                            # tsc（noUnusedLocals 严格）+ vite�
 cp -r frontend/dist/* backend/app/static/
 
 # Docker（uv.lock 与 package-lock.json 必须与依赖同步，镜像用 --frozen / npm ci）
-# 打包上传流程见 docs/Docker镜像打包上传.md，一键执行 scripts/docker-push.sh
-docker build -t pigzho/thingspan:latest .
+# 打包上传流程见 docs/Docker镜像打包上传.md，支持 GitHub Actions 自动构建与本地 scripts/docker-push.sh
+docker build -t ghcr.io/teemosun/thingspan:latest .
 ```
 
 ## 关键约定

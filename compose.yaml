@@ -1,6 +1,6 @@
 services:
   thingspan:
-    image: pigzho/thingspan:latest
+    image: ghcr.io/teemosun/thingspan:latest
     container_name: thingspan
     ports:
       - "19234:8000"
