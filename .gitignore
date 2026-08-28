@@ -24,4 +24,7 @@ data/
 .DS_Store
 .idea/
 .vscode/
+.gemini/
+.kilo/
 *.log
+

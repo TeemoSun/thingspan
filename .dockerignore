@@ -4,6 +4,8 @@
 .vscode
 .idea
 .gemini
+.kilo
+
 
 # Node / Frontend
 frontend/node_modules
