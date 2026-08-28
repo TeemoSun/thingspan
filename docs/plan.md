@@ -10,7 +10,6 @@
 - 支持资产状态流转：使用中 / 已售出 / 已损坏 / 已过期
 - 基于保修结束日期 / 到期日期，在到期前 30 / 7 / 1 天发送邮件提醒
 - 单容器 Docker 镜像发布到 GitHub Container Registry (ghcr.io)，数据落在挂载的 Data 目录
-
 ## 2. 技术栈
 
 | 层 | 选型 |
@@ -22,7 +21,6 @@
 | 时区 | 环境变量配置，默认 `Asia/Shanghai`，影响提醒调度与成本计算 |
 | 部署 | 多阶段 Docker 构建，单容器（FastAPI 托管前端静态文件），发布至 GHCR (ghcr.io) |
 
-## 3. 项目结构
 
 ```
 thingspan/
@@ -232,7 +230,7 @@ docker run -d \
   -p 19234:8000 \
   -v /path/to/data:/data \
   --env-file .env \
-  pigzho/thingspan:latest
+  ghcr.io/teemosun/thingspan:latest
 ```
 
 - SQLite 数据库文件自动创建于 `$DATA_DIR` 下
@@ -241,5 +239,4 @@ docker run -d \
 
 ## 12. 实施状态
 
-已全部完成（2026-08）：项目骨架、后端模型与迁移、bcrypt + JWT 双 Token、类别/资产 CRUD 与动态字段、成本计算与仪表盘、提醒调度 + SMTP 邮件（含失败重试）、前端 6 页面、Docker 镜像（已本地构建验证）。
-待用户操作：`docker push pigzho/thingspan:latest` 发布 DockerHub。
+已全部完成（2026-08）：项目骨架、后端模型与迁移、bcrypt + JWT 双 Token、类别/资产 CRUD 与动态字段、成本计算与仪表盘、提醒调度 + SMTP 邮件（含失败重试）、前端 6 页面、Docker 镜像（已本地构建验证与 GitHub Actions 自动发布至 GHCR）。
