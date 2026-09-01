@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 type Tab = "fav" | "recent" | "all";
 
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 120;
 
 const TABS: [Tab, string][] = [
   ["fav", "收藏"],
@@ -50,6 +50,7 @@ export default function IconPicker({
   });
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [favs, setFavs] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
@@ -61,12 +62,21 @@ export default function IconPicker({
       setRecent(loadRecentIcons());
       setPage(1);
       setSearch("");
+      setDebouncedSearch("");
       setTab("all");
       loadIconModule().then(setMod);
     }
   }, [open]);
 
-  const query = search.trim().toLowerCase();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const query = debouncedSearch.trim().toLowerCase();
 
   const list = useMemo(() => {
     let icons: string[];
@@ -76,6 +86,7 @@ export default function IconPicker({
     if (query) icons = icons.filter((s) => s.includes(query));
     return icons;
   }, [tab, favs, recent, data, query]);
+
 
   const visible = list.slice(0, page * PAGE_SIZE);
   const hasMore = visible.length < list.length;

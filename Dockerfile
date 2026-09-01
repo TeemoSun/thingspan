@@ -24,27 +24,33 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
     TZ=Asia/Shanghai
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata wget && \
+    addgroup -g 1000 -S appuser && \
+    adduser -u 1000 -S appuser -G appuser && \
+    mkdir -p /data /app && \
+    chown -R appuser:appuser /data /app
+
 WORKDIR /app
 
 # 从构建阶段拷入独立的虚拟环境（不含 uv 工具）
-COPY --from=backend-builder /opt/venv /opt/venv
+COPY --from=backend-builder --chown=appuser:appuser /opt/venv /opt/venv
 
 # 拷入 Alembic 迁移配置与脚本
-COPY backend/alembic ./alembic
-COPY backend/alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser backend/alembic ./alembic
+COPY --chown=appuser:appuser backend/alembic.ini ./alembic.ini
 
 # 拷入后端运行代码
-COPY backend/app ./app
+COPY --chown=appuser:appuser backend/app ./app
 
 # 拷入前端静态产物
-COPY --from=frontend /build/dist ./app/static
+COPY --from=frontend --chown=appuser:appuser /build/dist ./app/static
 
-VOLUME ["/data"]
+USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
+    CMD wget -q -O - http://127.0.0.1:8000/api/health > /dev/null || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+
 

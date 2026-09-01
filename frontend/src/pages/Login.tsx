@@ -1,20 +1,29 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { IconDevices } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login } from "@/lib/api";
+import { isLoggedIn, login } from "@/lib/api";
 import { usePageTitle } from "@/lib/hooks";
 
 export default function Login() {
   usePageTitle("登录");
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/";
+
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isLoggedIn()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,13 +31,14 @@ export default function Login() {
     setLoading(true);
     try {
       await login(password);
-      navigate("/");
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">

@@ -8,6 +8,9 @@ const STATUS_VARIANT: Record<AssetStatus, "success" | "secondary" | "destructive
   expired: "warning",
 };
 
-export function StatusBadge({ status }: { status: AssetStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABELS[status]}</Badge>;
+export function StatusBadge({ status, className }: { status: AssetStatus; className?: string }) {
+  const variant = STATUS_VARIANT[status] ?? "secondary";
+  const label = STATUS_LABELS[status] ?? status;
+  return <Badge variant={variant} className={className}>{label}</Badge>;
 }
+

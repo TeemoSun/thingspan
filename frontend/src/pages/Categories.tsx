@@ -201,7 +201,9 @@ export default function Categories() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive"
+                        className="text-destructive disabled:opacity-40"
+                        disabled={category.assets_count > 0 || deleteMutation.isPending}
+                        title={category.assets_count > 0 ? "该类别下已有资产，不可删除" : "删除类别"}
                         onClick={() => {
                           if (window.confirm(`确定删除类别「${category.name}」吗？`)) {
                             deleteMutation.mutate(category.id);
@@ -210,6 +212,7 @@ export default function Categories() {
                       >
                         <IconTrash className="h-4 w-4" />
                       </Button>
+
                     </div>
                   </TableCell>
                 </TableRow>

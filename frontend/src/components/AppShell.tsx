@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { IconBell, IconDevices, IconLayoutDashboard, IconLogout, IconTags } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,10 @@ const NAV_ITEMS = [
 ];
 
 export default function AppShell() {
-  const navigate = useNavigate();
   const handleLogout = () => {
     logout();
-    navigate("/login");
   };
+
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-52 flex-col border-r bg-background md:flex">

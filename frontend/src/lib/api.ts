@@ -46,20 +46,30 @@ async function tryRefresh(): Promise<boolean> {
   return true;
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+interface CustomRequestInit extends RequestInit {
+  _retry?: boolean;
+}
+
+export async function api<T>(path: string, options: CustomRequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (options.body && typeof options.body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const token = localStorage.getItem(ACCESS_KEY);
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(path, { ...options, headers });
 
   if (res.status === 401 && !path.startsWith("/api/auth/")) {
-    refreshing = refreshing ?? tryRefresh().finally(() => {
-      refreshing = null;
-    });
-    const ok = await refreshing;
-    if (ok) return api<T>(path, options);
+    if (!options._retry) {
+      refreshing = refreshing ?? tryRefresh().finally(() => {
+        refreshing = null;
+      });
+      const ok = await refreshing;
+      if (ok) {
+        return api<T>(path, { ...options, _retry: true });
+      }
+    }
     clearAuth();
     window.location.href = "/login";
     throw new Error("登录已过期，请重新登录");
@@ -69,5 +79,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `请求失败（${res.status}）`);
   }
-  return res.json() as Promise<T>;
+
+  if (res.status === 204) {
+    return {} as T;
+  }
+
+  return res.json().catch(() => ({})) as Promise<T>;
 }
+

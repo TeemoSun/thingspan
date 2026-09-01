@@ -29,7 +29,9 @@ export default function Reminders() {
     mutationFn: (id: number) =>
       api<ReminderLog>(`/api/reminders/${id}/dismiss`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reminders"] }),
+    onError: (err) => window.alert(err instanceof Error ? err.message : "忽略操作失败，请重试"),
   });
+
 
   if (isLoading) return <p className="text-muted-foreground">加载中…</p>;
   if (error) return <p className="text-destructive">{error instanceof Error ? error.message : "加载失败"}</p>;

@@ -1,4 +1,4 @@
-"""API 公共依赖。"""
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -12,5 +12,6 @@ def require_auth(credentials: HTTPAuthorizationCredentials | None = Depends(bear
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
     try:
         decode_token(credentials.credentials, "access")
-    except Exception:
+    except (jwt.PyJWTError, HTTPException):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期")
+

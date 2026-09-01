@@ -1,7 +1,6 @@
-"""提醒记录接口。"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_auth
 from app.database import get_db
@@ -26,8 +25,11 @@ def _to_out(log: ReminderLog) -> ReminderOut:
 
 @router.get("", response_model=list[ReminderOut])
 def list_reminders(db: Session = Depends(get_db)) -> list[ReminderOut]:
-    logs = db.scalars(select(ReminderLog).order_by(ReminderLog.sent_at.desc())).all()
+    logs = db.scalars(
+        select(ReminderLog).options(joinedload(ReminderLog.asset)).order_by(ReminderLog.sent_at.desc())
+    ).all()
     return [_to_out(l) for l in logs]
+
 
 
 @router.post("/{reminder_id}/dismiss", response_model=ReminderOut)

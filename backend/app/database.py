@@ -2,7 +2,8 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
@@ -22,6 +23,17 @@ engine = create_engine(
     f"sqlite:///{settings.database_path}",
     connect_args={"check_same_thread": False},
 )
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode = WAL;")
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute("PRAGMA busy_timeout = 5000;")
+    cursor.close()
+
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
@@ -31,3 +43,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_auth
 from app.database import get_db, local_now
@@ -81,11 +81,9 @@ def list_assets(
     sort_by: str | None = Query(default=None, pattern="^(purchase_date|purchase_price|daily_cost)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
 ) -> AssetListOut:
-    query = select(Asset)
+    query = select(Asset).options(joinedload(Asset.category))
     if category_id:
         query = query.where(Asset.category_id == category_id)
-    if status:
-        query = query.where(Asset.status == status)
     if search:
         like = f"%{search}%"
         query = query.where(
@@ -104,6 +102,8 @@ def list_assets(
         changed = sync_expiry_status(a, today) or changed
     if changed:
         db.commit()
+    if status:
+        items = [a for a in items if a.status == status]
     outs = [_to_out(a) for a in items]
     if sort_by:
         if sort_by == "purchase_date":
@@ -138,7 +138,7 @@ def create_asset(body: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
         broken_date=body.broken_date,
         notes=body.notes,
     )
-    _apply_warranty(asset, category)
+    _apply_warranty(asset, category, force=True)
     asset.category = category
     sync_expiry_status(asset, local_now().date())
     db.add(asset)
@@ -189,6 +189,9 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
         if field in data:
             setattr(asset, field, data[field])
 
+    if "category_id" in data:
+        asset.category = category
+
     if asset.status == AssetStatus.sold.value:
         if "sale_date" in data:
             asset.sale_date = sale_date
@@ -206,6 +209,7 @@ def update_asset(asset_id: int, body: AssetUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(asset)
     return _to_out(asset)
+
 
 
 @router.delete("/{asset_id}")

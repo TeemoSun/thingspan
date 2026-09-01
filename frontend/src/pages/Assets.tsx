@@ -142,12 +142,12 @@ export default function Assets() {
             className="pl-8"
           />
         </div>
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select value={categoryId || "ALL"} onValueChange={(v) => setCategoryId(v === "ALL" ? "" : v)}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="全部类别" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部类别</SelectItem>
+            <SelectItem value="ALL">全部类别</SelectItem>
             {(categories ?? []).map((c) => (
               <SelectItem key={c.id} value={String(c.id)}>
                 {c.name}
@@ -155,12 +155,12 @@ export default function Assets() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status || "ALL"} onValueChange={(v) => setStatus(v === "ALL" ? "" : v)}>
           <SelectTrigger className="w-full sm:w-32">
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部状态</SelectItem>
+            <SelectItem value="ALL">全部状态</SelectItem>
             {(Object.keys(STATUS_LABELS) as AssetStatus[]).map((s) => (
               <SelectItem key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -168,6 +168,7 @@ export default function Assets() {
             ))}
           </SelectContent>
         </Select>
+
         <Button
           variant={view === "list" ? "default" : "outline"}
           size="icon"

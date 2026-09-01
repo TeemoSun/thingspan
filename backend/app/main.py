@@ -87,7 +87,7 @@ def health() -> dict:
 if (STATIC_DIR / "index.html").exists():
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str):
-        if full_path.startswith("api/"):
+        if full_path == "api" or full_path.startswith("api/"):
             from fastapi import HTTPException
 
             raise HTTPException(status_code=404, detail="Not Found")

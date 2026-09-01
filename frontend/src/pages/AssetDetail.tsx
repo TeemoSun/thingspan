@@ -26,10 +26,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import { fmtDate, fmtMoney, fmtMoneyShort, todayStr } from "@/lib/format";
+import { calcWarrantyEndDate, fmtDate, fmtMoney, fmtMoneyShort, todayStr } from "@/lib/format";
 import { usePageTitle } from "@/lib/hooks";
 import { AssetIcon } from "@/lib/icons";
-import { type Asset, type Category } from "@/lib/types";
+import { type Asset, type AssetCreatePayload, type AssetUpdatePayload, type Category } from "@/lib/types";
 
 interface FormState {
   name: string;
@@ -44,6 +44,20 @@ interface FormState {
   expiry_date: string;
   notes: string;
 }
+
+const INITIAL_FORM_STATE: FormState = {
+  name: "",
+  icon: "",
+  category_id: "",
+  brand: "",
+  model: "",
+  serial_number: "",
+  purchase_date: todayStr(),
+  purchase_price: "",
+  warranty_months: "",
+  expiry_date: "",
+  notes: "",
+};
 
 const FORMULA_LABELS: Record<string, string> = {
   in_use: "使用中（价格 ÷ 已用天数；有到期日按到期日计）",
@@ -70,20 +84,9 @@ export default function AssetDetail() {
   });
   usePageTitle(isNew ? "新建资产" : asset?.name || "资产详情");
 
-  const [form, setForm] = useState<FormState>({
-    name: "",
-    icon: "",
-    category_id: "",
-    brand: "",
-    model: "",
-    serial_number: "",
-    purchase_date: todayStr(),
-    purchase_price: "",
-    warranty_months: "",
-    expiry_date: "",
-    notes: "",
-  });
+  const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
   const [error, setError] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [iconOpen, setIconOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [brokenOpen, setBrokenOpen] = useState(false);
@@ -92,6 +95,11 @@ export default function AssetDetail() {
   const [brokenDate, setBrokenDate] = useState(todayStr());
 
   useEffect(() => {
+    if (isNew) {
+      setForm(INITIAL_FORM_STATE);
+      setError("");
+      return;
+    }
     if (!asset) return;
     setForm({
       name: asset.name,
@@ -106,47 +114,58 @@ export default function AssetDetail() {
       expiry_date: asset.expiry_date ?? "",
       notes: asset.notes ?? "",
     });
-  }, [asset]);
+  }, [asset, isNew, id]);
 
   const category = useMemo(
     () => (categories ?? []).find((c) => c.id === Number(form.category_id)),
     [categories, form.category_id]
   );
 
+  const showWarrantyField = category?.has_warranty === true;
+  const showExpiryField = category?.has_expiry === true;
+  const showModelField = category?.has_model === true;
+  const showSerialField = category?.has_serial === true;
+  const canSell = category?.can_sell === true;
+  const canBreak = category?.can_break === true;
+
   function setField(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function submit(e: FormEvent) {
+  const saveMutation = useMutation({
+    mutationFn: (payload: AssetCreatePayload | AssetUpdatePayload) =>
+      isNew
+        ? api<Asset>("/api/assets", { method: "POST", body: JSON.stringify(payload) })
+        : api<Asset>(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify(payload) }),
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      navigate(`/assets/${saved.id}`);
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "保存失败"),
+  });
+
+  function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
     if (!form.category_id) {
       setError("请选择类别");
       return;
     }
-    const payload = {
+    const payload: AssetCreatePayload = {
       category_id: Number(form.category_id),
-      name: form.name,
+      name: form.name.trim(),
       icon: form.icon || null,
       brand: form.brand || null,
-      model: form.model || null,
-      serial_number: form.serial_number || null,
+      model: showModelField ? (form.model || null) : null,
+      serial_number: showSerialField ? (form.serial_number || null) : null,
       purchase_date: form.purchase_date,
       purchase_price: parseFloat(form.purchase_price) || 0,
-      warranty_months: form.warranty_months ? parseInt(form.warranty_months, 10) : null,
-      expiry_date: form.expiry_date || null,
+      warranty_months: showWarrantyField && form.warranty_months ? parseInt(form.warranty_months, 10) : null,
+      expiry_date: showExpiryField ? (form.expiry_date || null) : null,
       notes: form.notes || null,
     };
-    try {
-      const saved = isNew
-        ? await api<Asset>("/api/assets", { method: "POST", body: JSON.stringify(payload) })
-        : await api<Asset>(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify(payload) });
-      await queryClient.invalidateQueries({ queryKey: ["assets"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      navigate(`/assets/${saved.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
-    }
+    saveMutation.mutate(payload);
   }
 
   const statusMutation = useMutation({
@@ -158,8 +177,13 @@ export default function AssetDetail() {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setSellOpen(false);
       setBrokenOpen(false);
+      setDialogError("");
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "操作失败"),
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "操作失败";
+      setDialogError(msg);
+      setError(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -172,25 +196,14 @@ export default function AssetDetail() {
     onError: (err) => setError(err instanceof Error ? err.message : "删除失败"),
   });
 
-  const showWarrantyField = category?.has_warranty === true;
-  const showExpiryField = category?.has_expiry === true;
-  const showModelField = category?.has_model === true;
-  const showSerialField = category?.has_serial === true;
-  const canSell = category?.can_sell === true;
-  const canBreak = category?.can_break === true;
-
   const warrantyEndPreview = useMemo(() => {
     const months = parseInt(form.warranty_months, 10);
     if (!showWarrantyField || !form.purchase_date || !months || months < 1) return null;
-    const d = new Date(`${form.purchase_date}T00:00:00`);
-    d.setDate(d.getDate() + months * 30);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    return calcWarrantyEndDate(form.purchase_date, months);
   }, [showWarrantyField, form.purchase_date, form.warranty_months]);
 
   if (assetLoading) return <p className="text-muted-foreground">加载中…</p>;
+
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -267,15 +280,15 @@ export default function AssetDetail() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {asset.status === "in_use" && (
+              {(asset.status === "in_use" || asset.status === "expired") && (
                 <>
                   {canSell && (
-                    <Button variant="outline" size="sm" onClick={() => setSellOpen(true)}>
+                    <Button variant="outline" size="sm" onClick={() => { setDialogError(""); setSellOpen(true); }}>
                       标记已售出
                     </Button>
                   )}
                   {canBreak && (
-                    <Button variant="outline" size="sm" onClick={() => setBrokenOpen(true)}>
+                    <Button variant="outline" size="sm" onClick={() => { setDialogError(""); setBrokenOpen(true); }}>
                       标记已损坏
                     </Button>
                   )}
@@ -409,15 +422,15 @@ export default function AssetDetail() {
               <Button type="button" variant="outline" onClick={() => navigate("/assets")}>
                 取消
               </Button>
-              <Button type="submit" disabled={statusMutation.isPending}>
-                保存
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? "保存中…" : "保存"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      <Dialog open={sellOpen} onOpenChange={setSellOpen}>
+      <Dialog open={sellOpen} onOpenChange={(open) => { setSellOpen(open); if (!open) setDialogError(""); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>标记已售出</DialogTitle>
@@ -433,6 +446,7 @@ export default function AssetDetail() {
               <Input type="number" min="0" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="如 4000" />
             </div>
           </div>
+          {dialogError && <p className="text-sm text-destructive">{dialogError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSellOpen(false)}>
               取消
@@ -447,13 +461,13 @@ export default function AssetDetail() {
                 })
               }
             >
-              确认售出
+              {statusMutation.isPending ? "处理中…" : "确认售出"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={brokenOpen} onOpenChange={setBrokenOpen}>
+      <Dialog open={brokenOpen} onOpenChange={(open) => { setBrokenOpen(open); if (!open) setDialogError(""); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>标记已损坏</DialogTitle>
@@ -463,6 +477,7 @@ export default function AssetDetail() {
             <Label>损坏日期</Label>
             <Input type="date" value={brokenDate} onChange={(e) => setBrokenDate(e.target.value)} />
           </div>
+          {dialogError && <p className="text-sm text-destructive">{dialogError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setBrokenOpen(false)}>
               取消
@@ -471,7 +486,7 @@ export default function AssetDetail() {
               disabled={!brokenDate || statusMutation.isPending}
               onClick={() => statusMutation.mutate({ status: "broken", broken_date: brokenDate })}
             >
-              确认损坏
+              {statusMutation.isPending ? "处理中…" : "确认损坏"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -479,3 +494,4 @@ export default function AssetDetail() {
     </div>
   );
 }
+

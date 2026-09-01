@@ -3,7 +3,8 @@ services:
     image: ghcr.io/teemosun/thingspan:latest
     container_name: thingspan
     ports:
-      - "19234:8000"
+      - "${HOST_BIND:-127.0.0.1}:${HOST_PORT:-19234}:8000"
+
     env_file:
       - .env
     volumes:

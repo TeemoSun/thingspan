@@ -29,8 +29,16 @@ data/
 .env.*
 backend/.env
 backend/.env.*
+**/data/
+**/*.db*
+**/*.sqlite*
+**/.env*
+!**/.env.example
 
 # Documentation and temporary files
 docs/
 AGENTS.md
+scripts/
+README.md
 *.log
+

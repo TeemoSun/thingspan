@@ -58,6 +58,9 @@ class Asset(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=local_now, onupdate=local_now)
 
     category: Mapped[Category] = relationship(back_populates="assets")
+    reminder_logs: Mapped[list["ReminderLog"]] = relationship(
+        back_populates="asset", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class ReminderLog(Base):
@@ -65,11 +68,12 @@ class ReminderLog(Base):
     __table_args__ = (UniqueConstraint("asset_id", "target_date", "lead_days", name="uq_reminder_log"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"))
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"))
     target_date: Mapped[date] = mapped_column(Date)
     lead_days: Mapped[int] = mapped_column(Integer)
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=local_now)
     sent: Mapped[bool] = mapped_column(Boolean, default=True)
     dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    asset: Mapped[Asset] = relationship()
+    asset: Mapped[Asset] = relationship(back_populates="reminder_logs")
+

@@ -38,8 +38,42 @@ export interface Asset {
   sale_price: number | null;
   broken_date: string | null;
   notes: string | null;
+  created_at?: string;
+  updated_at?: string;
   cost: CostInfo;
 }
+
+export interface AssetCreatePayload {
+  category_id: number;
+  name: string;
+  icon?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  serial_number?: string | null;
+  purchase_date: string;
+  purchase_price: number;
+  warranty_months?: number | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+}
+
+export interface AssetUpdatePayload extends Partial<AssetCreatePayload> {
+  status?: AssetStatus;
+  sale_date?: string | null;
+  sale_price?: number | null;
+  broken_date?: string | null;
+}
+
+export interface CategoryPayload {
+  name: string;
+  has_warranty: boolean;
+  has_expiry: boolean;
+  can_sell: boolean;
+  can_break: boolean;
+  has_serial: boolean;
+  has_model: boolean;
+}
+
 
 export interface AssetList {
   items: Asset[];

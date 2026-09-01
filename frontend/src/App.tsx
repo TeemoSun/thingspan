@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import AppShell from "@/components/AppShell";
 import { isLoggedIn } from "@/lib/api";
@@ -11,7 +11,8 @@ import Login from "@/pages/Login";
 import Reminders from "@/pages/Reminders";
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  return isLoggedIn() ? children : <Navigate to="/login" replace />;
+  const location = useLocation();
+  return isLoggedIn() ? children : <Navigate to="/login" state={{ from: location }} replace />;
 }
 
 export default function App() {
@@ -27,8 +28,8 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="/assets" element={<Assets />} />
-        <Route path="/assets/new" element={<AssetDetail />} />
-        <Route path="/assets/:id" element={<AssetDetail />} />
+        <Route path="/assets/new" element={<AssetDetail key="new" />} />
+        <Route path="/assets/:id" element={<AssetDetail key="detail" />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/reminders" element={<Reminders />} />
       </Route>
@@ -36,3 +37,4 @@ export default function App() {
     </Routes>
   );
 }
+

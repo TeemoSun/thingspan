@@ -15,10 +15,11 @@ _login_attempts: dict[str, deque[float]] = {}
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # 优先取直连客户端 IP，防止外部伪造 X-Forwarded-For 绕过限流
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
 
 
 def _check_login_rate(ip: str) -> None:
