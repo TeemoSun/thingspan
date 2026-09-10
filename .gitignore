@@ -1,4 +1,5 @@
 # Python
+backend_py/
 __pycache__/
 *.py[cod]
 .venv/
@@ -11,7 +12,10 @@ venv/
 # Node
 node_modules/
 frontend/dist/
+backend/static/
 backend/app/static/
+backend/thingspan
+thingspan
 *.tsbuildinfo
 
 # Data & env
